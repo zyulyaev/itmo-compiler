@@ -1,3 +1,3 @@
 [submodule "tests"]
 	path = tests
-	url = git@github.com:anlun/compiler-tests.git
+	url = git@github.com:zyulyaev/compiler-tests.git
