@@ -1,3 +1,5 @@
 /target
 /.idea
 *.iml
+/rc.jar
+/rc
