@@ -7,6 +7,7 @@ rc.jar:
 
 test: rc
 	$(MAKE) -C tests/core -f checkInterpreter
+	$(MAKE) -C tests/core -f checkStackMachine
 
 clean:
 	rm rc rc.jar

@@ -8,7 +8,12 @@ import ru.ifmo.ctddev.zyulyaev.GrammarLexer;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.build.AsgBuilder;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.BcInterpreter;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.BcRuntime;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate.BcTranslator;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.Interpreter;
+import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.InterpreterRuntime;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -20,7 +25,6 @@ import java.util.List;
  * @since 27.05.2017
  */
 public class CompilerRunner {
-    private final Runtime runtime = new Runtime();
     private final Mode mode;
 
     public CompilerRunner(Mode mode) {
@@ -29,13 +33,18 @@ public class CompilerRunner {
 
     public void run(Path path) throws IOException {
         GrammarParser parser = new GrammarParser(new CommonTokenStream(new GrammarLexer(CharStreams.fromPath(path))));
-        AsgProgram program = AsgBuilder.build(parser, runtime.getExternalFunctions());
+        AsgProgram program = AsgBuilder.build(parser, Runtime.getExternalFunctions());
         switch (mode) {
         case INTERPRETER:
-            new Interpreter().interpret(program, runtime.getFunctionDefinitions());
+            new Interpreter().interpret(program, new InterpreterRuntime().getFunctionDefinitions());
             break;
         case STACK_MACHINE:
-            throw new UnsupportedOperationException("Stack machine mode is not supported");
+            BcProgram bcProgram = new BcTranslator().translate(program);
+//            try (BcPrinter bcPrinter = new BcPrinter(new PrintWriter(System.err))) {
+//                bcPrinter.print(bcProgram);
+//            }
+            new BcInterpreter(bcProgram, new BcRuntime().getFunctionDefinitions()).interpret();
+            break;
         case COMPILER:
             throw new UnsupportedOperationException("Compiler mode is not supported");
         }
