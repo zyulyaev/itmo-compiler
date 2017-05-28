@@ -1,6 +1,5 @@
 rc: rc.jar
-	echo "#!java -jar" > rc
-	cat rc.jar >> rc
+	cat stub.sh rc.jar > rc
 	chmod +x rc
 
 rc.jar:
