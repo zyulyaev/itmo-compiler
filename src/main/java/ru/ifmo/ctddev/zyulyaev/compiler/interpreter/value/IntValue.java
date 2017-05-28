@@ -18,9 +18,4 @@ public class IntValue implements Value {
     public ValueType getType() {
         return ValueType.INT;
     }
-
-    @Override
-    public String stringValue() {
-        return Integer.toString(value);
-    }
 }

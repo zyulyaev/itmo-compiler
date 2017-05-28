@@ -7,6 +7,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.Value;
 import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -36,7 +37,7 @@ public class FunctionTable {
             InterpreterContext callContext = new InterpreterContext(this, null);
             for (int i = 0; i < arguments.size(); i++) {
                 AsgVariable parameter = function.getParameters().get(i);
-                callContext.assignVariable(parameter, arguments.get(i));
+                callContext.assignValue(new LeftValue(parameter, Collections.emptyList()), arguments.get(i));
             }
             AsgFunctionDefinition definition = definitionMap.get(function);
             return definition.getBody().accept(callContext.asStatementInterpreter());

@@ -8,7 +8,7 @@ import lombok.Data;
  */
 @Data
 public class StringValue implements Value {
-    private final String value;
+    private String value;
 
     public StringValue(String value) {
         this.value = value;
@@ -17,10 +17,5 @@ public class StringValue implements Value {
     @Override
     public ValueType getType() {
         return ValueType.STRING;
-    }
-
-    @Override
-    public String stringValue() {
-        return value;
     }
 }

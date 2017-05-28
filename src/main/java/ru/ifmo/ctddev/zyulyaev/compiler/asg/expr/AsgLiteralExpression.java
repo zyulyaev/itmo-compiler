@@ -17,6 +17,6 @@ public class AsgLiteralExpression<T> implements AsgExpression {
     }
 
     public enum LiteralType {
-        INT, STRING
+        INT, STRING, NULL
     }
 }

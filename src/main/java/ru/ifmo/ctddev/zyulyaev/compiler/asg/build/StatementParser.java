@@ -5,6 +5,7 @@ import ru.ifmo.ctddev.zyulyaev.GrammarParser;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgAssignment;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgForStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgFunctionCallStatement;
@@ -16,6 +17,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementList;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgWhileStatement;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * @author zyulyaev
@@ -30,10 +32,17 @@ class StatementParser extends GrammarBaseVisitor<AsgStatement> {
 
     @Override
     public AsgStatement visitAssignment(GrammarParser.AssignmentContext assignment) {
-        String name = assignment.variable.ID().getText();
-        AsgVariable variable = context.resolveOrDeclareVariable(name);
-        AsgExpression expression = assignment.expression().accept(context.asExpressionParser());
-        return new AsgAssignment(variable, expression);
+        if (assignment.variable.expression().isEmpty()) {
+            String name = assignment.variable.value.getText();
+            AsgVariable variable = context.resolveOrDeclareVariable(name);
+            AsgExpression expression = assignment.expression().accept(context.asExpressionParser());
+            return new AsgAssignment(new AsgLeftValueExpression(variable, Collections.emptyList()), expression);
+        } else {
+            AsgLeftValueExpression leftValue =
+                (AsgLeftValueExpression) assignment.variable.accept(context.asExpressionParser());
+            AsgExpression expression = assignment.expression().accept(context.asExpressionParser());
+            return new AsgAssignment(leftValue, expression);
+        }
     }
 
     @Override

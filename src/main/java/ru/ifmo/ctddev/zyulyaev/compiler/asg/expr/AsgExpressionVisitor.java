@@ -7,9 +7,11 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.expr;
 public interface AsgExpressionVisitor<T> {
     T visit(AsgLiteralExpression<?> literal);
 
-    T visit(AsgVariableExpression variable);
+    T visit(AsgLeftValueExpression leftValue);
 
     T visit(AsgBinaryExpression binaryExpression);
 
     T visit(AsgFunctionCallExpression functionCall);
+
+    T visit(AsgArrayExpression arrayExpression);
 }

@@ -1,8 +1,8 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt;
 
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
 
 /**
  * @author zyulyaev
@@ -10,7 +10,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
  */
 @Data
 public class AsgAssignment implements AsgStatement {
-    private final AsgVariable variable;
+    private final AsgLeftValueExpression leftValue;
     private final AsgExpression expression;
 
     @Override

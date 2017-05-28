@@ -5,10 +5,11 @@ import ru.ifmo.ctddev.zyulyaev.GrammarBaseVisitor;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgVariableExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.lang.BinaryOperator;
 
 import java.util.List;
@@ -58,15 +59,26 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
     public AsgExpression visitFunctionCall(GrammarParser.FunctionCallContext ctx) {
         AsgFunction function = context.resolveFunction(ctx.name.getText());
         List<AsgExpression> arguments = ctx.args.argument().stream()
-            .map(arg -> arg.accept(context.asExpressionParser()))
+            .map(arg -> arg.accept(this))
             .collect(Collectors.toList());
         return new AsgFunctionCallExpression(function, arguments);
     }
 
     @Override
-    public AsgExpression visitIdExpr(GrammarParser.IdExprContext ctx) {
-        AsgVariable variable = context.resolveVariable(ctx.getText());
-        return new AsgVariableExpression(variable);
+    public AsgExpression visitLeftValue(GrammarParser.LeftValueContext ctx) {
+        AsgVariable variable = context.resolveVariable(ctx.value.getText());
+        List<AsgExpression> indexes = ctx.expression().stream()
+            .map(index -> index.accept(this))
+            .collect(Collectors.toList());
+        return new AsgLeftValueExpression(variable, indexes);
+    }
+
+    @Override
+    public AsgExpression visitArrayExpr(GrammarParser.ArrayExprContext ctx) {
+        List<AsgExpression> values = ctx.arguments().argument().stream()
+            .map(arg -> arg.accept(this))
+            .collect(Collectors.toList());
+        return new AsgArrayExpression(values);
     }
 
     @Override

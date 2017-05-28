@@ -36,7 +36,7 @@ arguments
 
 argument: expression;
 
-assignment: variable=id ':=' value=expression;
+assignment: variable=leftValue ':=' value=expression;
 
 ifStatement: 'if' condition=expression 'then' positive=statements negative=elseBlock? 'fi';
 elseBlock
@@ -63,17 +63,26 @@ expression
     | left=expression op=('&&'|'||') right=expression                       # binExpr
     | '(' expression ')'                                                    # parensExpr
     | functionCall                                                          # functionExpr
-    | id                                                                    # idExpr
+    | leftValue                                                             # leftValueExpr
     | literal                                                               # literalExpr
+    | '[' arguments ']'                                                     # arrayExpr
     ;
+
+leftValue: value=id ('[' expression ']')*;
 
 id: ID;
 literal
     : STR       # stringLiteral
     | INT       # intLiteral
+    | CHAR      # charLiteral
+    | BOOL      # boolLiteral
+    | NULL      # nullLiteral
     ;
 
 STR : '"' (~'"'|'\\"')* '"';
+BOOL: 'true' | 'false';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
 INT: [0-9]+;
+CHAR: '\'' (~'\''|'\\\'') '\'';
+NULL: '{}';
 WS: [\n\r\t ]+ -> skip;

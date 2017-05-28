@@ -27,7 +27,7 @@ public class StatementInterpreter implements AsgStatementVisitor<Value> {
 
     @Override
     public Value visit(AsgAssignment assignment) {
-        context.assignVariable(assignment.getVariable(),
+        context.assignValue(context.asExpressionInterpreter().interpretLeftValue(assignment.getLeftValue()),
             assignment.getExpression().accept(context.asExpressionInterpreter()));
         return null;
     }

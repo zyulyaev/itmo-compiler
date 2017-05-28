@@ -7,5 +7,15 @@ package ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value;
 public interface Value {
     ValueType getType();
 
-    String stringValue();
+    default StringValue asString() {
+        return (StringValue) this;
+    }
+
+    default IntValue asInt() {
+        return (IntValue) this;
+    }
+
+    default ArrayValue asArray() {
+        return (ArrayValue) this;
+    }
 }

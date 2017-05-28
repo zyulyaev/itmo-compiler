@@ -2,6 +2,8 @@ package ru.ifmo.ctddev.zyulyaev.compiler.interpreter;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.ArrayValue;
+import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.IntValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.Value;
 
 import java.util.HashMap;
@@ -26,20 +28,40 @@ public class InterpreterContext {
         return valuesMap.containsKey(variable) || parent != null && parent.hasVariable(variable);
     }
 
-    public void assignVariable(AsgVariable variable, Value value) {
-        if (parent == null || !parent.hasVariable(variable)) {
-            valuesMap.put(variable, value);
-        } else {
-            parent.assignVariable(variable, value);
-        }
-    }
-
-    public Value getVariableValue(AsgVariable variable) {
+    private Value getVariableValue(AsgVariable variable) {
         if (valuesMap.containsKey(variable)) {
             return valuesMap.get(variable);
         } else {
-            return parent.getVariableValue(variable);
+            return parent == null ? null : parent.getVariableValue(variable);
         }
+    }
+
+    private Value locateValue(LeftValue leftValue, int skipDepth) {
+        Value value = getVariableValue(leftValue.getVariable());
+        List<IntValue> indexes = leftValue.getIndexes();
+        for (int i = 0; i < indexes.size() - skipDepth; i++) {
+            value = value.asArray().get(indexes.get(i).getValue());
+        }
+        return value;
+    }
+
+    public void assignValue(LeftValue leftValue, Value value) {
+        if (leftValue.isPlainVariable()) {
+            AsgVariable variable = leftValue.getVariable();
+            if (parent == null || !parent.hasVariable(variable)) {
+                valuesMap.put(variable, value);
+            } else {
+                parent.assignValue(leftValue, value);
+            }
+        } else {
+            ArrayValue array = (ArrayValue) locateValue(leftValue, 1);
+            List<IntValue> indexes = leftValue.getIndexes();
+            array.set(indexes.get(indexes.size() - 1).getValue(), value);
+        }
+    }
+
+    public Value getVariableValue(LeftValue leftValue) {
+        return locateValue(leftValue, 0);
     }
 
     public ExpressionInterpreter asExpressionInterpreter() {
