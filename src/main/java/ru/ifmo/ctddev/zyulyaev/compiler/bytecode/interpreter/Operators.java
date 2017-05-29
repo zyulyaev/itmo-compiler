@@ -52,6 +52,7 @@ class Operators {
 
         case AND: return boolValue(lValue != 0 && rValue != 0);
         case OR: return boolValue(lValue != 0 || rValue != 0);
+        case WAT: return boolValue(lValue != 0 || rValue != 0);
         }
         throw new UnsupportedOperationException("Operator " + operator + " is not supported on INT and INT");
     }

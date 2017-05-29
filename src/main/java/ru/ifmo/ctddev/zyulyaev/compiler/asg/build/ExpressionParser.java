@@ -38,6 +38,7 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
 
         .put("&&", BinaryOperator.AND)
         .put("||", BinaryOperator.OR)
+        .put("!!", BinaryOperator.WAT)
 
         .build();
 

@@ -61,6 +61,7 @@ expression
     | left=expression op=('+'|'-') right=expression                         # binExpr
     | left=expression op=('<'|'>'|'>='|'<='|'=='|'!=') right=expression     # binExpr
     | left=expression op=('&&'|'||') right=expression                       # binExpr
+    | left=expression op='!!' right=expression                              # binExpr
     | '(' expression ')'                                                    # parensExpr
     | functionCall                                                          # functionExpr
     | leftValue                                                             # leftValueExpr

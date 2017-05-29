@@ -26,23 +26,26 @@ public class Operators {
     }
 
     private static Value applyInt(IntValue left, IntValue right, BinaryOperator operator) {
+        int lValue = left.getValue();
+        int rValue = right.getValue();
         switch (operator) {
-        case MUL: return intValue(left.getValue() * right.getValue());
-        case DIV: return intValue(left.getValue() / right.getValue());
-        case MOD: return intValue(left.getValue() % right.getValue());
+        case MUL: return intValue(lValue * rValue);
+        case DIV: return intValue(lValue / rValue);
+        case MOD: return intValue(lValue % rValue);
 
-        case ADD: return intValue(left.getValue() + right.getValue());
-        case SUB: return intValue(left.getValue() - right.getValue());
+        case ADD: return intValue(lValue + rValue);
+        case SUB: return intValue(lValue - rValue);
 
-        case GT: return boolValue(left.getValue() > right.getValue());
-        case LT: return boolValue(left.getValue() < right.getValue());
-        case GTE: return boolValue(left.getValue() >= right.getValue());
-        case LTE: return boolValue(left.getValue() <= right.getValue());
-        case EQ: return boolValue(left.getValue() == right.getValue());
-        case NEQ: return boolValue(left.getValue() != right.getValue());
+        case GT: return boolValue(lValue > rValue);
+        case LT: return boolValue(lValue < rValue);
+        case GTE: return boolValue(lValue >= rValue);
+        case LTE: return boolValue(lValue <= rValue);
+        case EQ: return boolValue(lValue == rValue);
+        case NEQ: return boolValue(lValue != rValue);
 
-        case AND: return boolValue(left.getValue() != 0 && right.getValue() != 0);
-        case OR: return boolValue(left.getValue() != 0 || right.getValue() != 0);
+        case AND: return boolValue(lValue != 0 && rValue != 0);
+        case OR: return boolValue(lValue != 0 || rValue != 0);
+        case WAT: return boolValue(lValue != 0 || rValue != 0);
         }
 
         throw new UnsupportedOperationException("Operator not supported on int type: " + operator);

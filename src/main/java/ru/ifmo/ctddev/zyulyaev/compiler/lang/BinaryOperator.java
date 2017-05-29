@@ -9,5 +9,5 @@ public enum BinaryOperator {
     MUL, DIV, MOD,
     ADD, SUB,
     LT, GT, LTE, GTE, EQ, NEQ,
-    AND, OR
+    AND, OR, WAT
 }
