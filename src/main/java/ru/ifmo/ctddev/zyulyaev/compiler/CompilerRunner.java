@@ -88,7 +88,7 @@ public class CompilerRunner {
         private boolean compile;
     }
 
-    private enum Mode {
+    public enum Mode {
         INTERPRETER, STACK_MACHINE, COMPILER
     }
 }

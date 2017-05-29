@@ -3,7 +3,7 @@ rc: rc.jar
 	chmod +x rc
 
 rc.jar:
-	mvn clean package
+	mvn clean package -DskipTests
 
 core_test: rc
 	$(MAKE) -C tests/core -f checkInterpreter
