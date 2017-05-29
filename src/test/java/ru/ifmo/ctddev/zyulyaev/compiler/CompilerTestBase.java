@@ -34,7 +34,6 @@ public abstract class CompilerTestBase {
     public TestFileSet set;
 
     private void testInMode(CompilerRunner.Mode mode) throws IOException {
-        System.err.println("TestSet: " + set);
         CompilerRunner runner = new CompilerRunner(mode);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         try (InputStream in = Files.newInputStream(set.getInput());
