@@ -30,9 +30,11 @@ import java.util.List;
  */
 public class CompilerRunner {
     private final Mode mode;
+    private final String runtime;
 
-    public CompilerRunner(Mode mode) {
+    public CompilerRunner(Mode mode, String runtime) {
         this.mode = mode;
+        this.runtime = runtime;
     }
 
     public int run(FileSet fileSet) throws Exception {
@@ -55,8 +57,6 @@ public class CompilerRunner {
                         writer.newLine();
                     }
                 }
-                String runtime = System.getenv("RC_RUNTIME");
-                runtime = runtime == null ? "../../runtime" : runtime;
                 ProcessBuilder gcc = new ProcessBuilder("gcc", "-m32", "-g", "-o",
                     fileSet.getOutput().toString(), runtime + "/runtime.o", fileSet.getAsmOutput().toString())
                     .inheritIO();
@@ -74,20 +74,26 @@ public class CompilerRunner {
         jCommander.parse(argv);
 
         CompilerRunner runner = null;
+        String runtime = runtimeFromEnv();
         if ((args.interpret ? 1 : 0) + (args.stackMachine ? 1 : 0) + (args.compile ? 1 : 0) > 1) {
             System.out.println("Please select only one mode");
         } else if (args.interpret) {
-            runner = new CompilerRunner(Mode.INTERPRETER);
+            runner = new CompilerRunner(Mode.INTERPRETER, runtime);
         } else if (args.stackMachine) {
-            runner = new CompilerRunner(Mode.STACK_MACHINE);
+            runner = new CompilerRunner(Mode.STACK_MACHINE, runtime);
         } else if (args.compile) {
-            runner = new CompilerRunner(Mode.COMPILER);
+            runner = new CompilerRunner(Mode.COMPILER, runtime);
         }
         if (runner != null) {
             System.exit(runner.run(FileSet.fromInput(args.files.get(0))));
         } else {
             jCommander.usage();
         }
+    }
+
+    private static String runtimeFromEnv() {
+        String runtime = System.getenv("RC_RUNTIME");
+        return runtime == null ? "../../runtime" : runtime;
     }
 
     private static class Args {

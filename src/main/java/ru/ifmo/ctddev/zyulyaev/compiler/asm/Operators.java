@@ -58,10 +58,21 @@ class Operators {
             break;
         case OR:
         case WAT:
-            logical(builder, AsmBinary.OR);
+            builder.add(AsmBinary.OR.create(AsmRegister.EAX, AsmRegister.ECX));
+            builder.add(AsmBinary.MOV.create(AsmRegister.EAX, new AsmImmediate(0)));
+            builder.add(AsmUnary.SETNE.create(AsmRegister.AL));
+            builder.add(AsmUnary.PUSH.create(AsmRegister.EAX));
             break;
         case AND:
-            logical(builder, AsmBinary.TEST);
+            builder.add(AsmBinary.TEST.create(AsmRegister.EAX, AsmRegister.EAX));
+            builder.add(AsmBinary.MOV.create(AsmRegister.EAX, new AsmImmediate(0)));
+            builder.add(AsmUnary.SETNE.create(AsmRegister.AL));
+            builder.add(AsmBinary.MOV.create(AsmRegister.EDX, AsmRegister.EAX));
+            builder.add(AsmBinary.TEST.create(AsmRegister.ECX, AsmRegister.ECX));
+            builder.add(AsmUnary.SETNE.create(AsmRegister.AL));
+            builder.add(AsmBinary.TEST.create(AsmRegister.EAX, AsmRegister.EDX));
+            builder.add(AsmUnary.SETNE.create(AsmRegister.AL));
+            builder.add(AsmUnary.PUSH.create(AsmRegister.EAX));
             break;
         default:
             throw new UnsupportedOperationException("Operator not supported: " + operator);
@@ -84,13 +95,6 @@ class Operators {
         builder.add(AsmBinary.CMP.create(AsmRegister.EAX, AsmRegister.ECX));
         builder.add(AsmBinary.MOV.create(AsmRegister.EAX, new AsmImmediate(0)));
         builder.add(setOperator.create(AsmRegister.AL));
-        builder.add(AsmUnary.PUSH.create(AsmRegister.EAX));
-    }
-
-    private static void logical(Stream.Builder<AsmInstruction> builder, AsmBinary operator) {
-        builder.add(operator.create(AsmRegister.EAX, AsmRegister.ECX));
-        builder.add(AsmBinary.MOV.create(AsmRegister.EAX, new AsmImmediate(0)));
-        builder.add(AsmUnary.SETNE.create(AsmRegister.AL));
         builder.add(AsmUnary.PUSH.create(AsmRegister.EAX));
     }
 }

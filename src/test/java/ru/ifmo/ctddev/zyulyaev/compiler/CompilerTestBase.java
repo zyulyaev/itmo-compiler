@@ -35,7 +35,7 @@ public abstract class CompilerTestBase {
     public TestFileSet set;
 
     private void testInMode(CompilerRunner.Mode mode) throws Exception {
-        CompilerRunner runner = new CompilerRunner(mode);
+        CompilerRunner runner = new CompilerRunner(mode, "");
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         try (InputStream in = Files.newInputStream(set.getInput());
              PrintStream out = new PrintStream(buffer))
@@ -66,20 +66,21 @@ public abstract class CompilerTestBase {
 
     @Test
     public void testCompiler() throws Exception {
-        CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER);
+        CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER, "runtime");
         Path asm = Paths.get("target","test.s");
         Path output = Paths.get("target","test");
         Path log = Paths.get("target", "test.log");
         try {
-            runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output));
-            new ProcessBuilder(output.toString())
+            Assert.assertEquals("Compile " + set.getCode(), 0,
+                runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output)));
+            Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
                 .redirectInput(set.getInput().toFile())
                 .redirectOutput(log.toFile())
-                .start().waitFor();
+                .start().waitFor());
 
             byte[] ans = Files.readAllBytes(log);
             byte[] orig = Files.readAllBytes(set.getOrig());
-            Assert.assertArrayEquals(orig, ans);
+            Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
         } finally {
             Files.deleteIfExists(asm);
             Files.deleteIfExists(output);
