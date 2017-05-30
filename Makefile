@@ -22,4 +22,4 @@ test: core_test expressions_test deep_expressions_test
 clean:
 	rm rc rc.jar
 
-.PHONY: clean core_test expressions_test deep_expressions_test test
+.PHONY: clean core_test expressions_test deep_expressions_test test runtime
