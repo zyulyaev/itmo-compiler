@@ -19,6 +19,8 @@ public interface BcInstructionVisitor<T> {
 
     T visitNop(BcNullaryInstructions nop);
 
+    T visitPop(BcNullaryInstructions pop);
+
     T visitLoad(BcNullaryInstructions load);
 
     T visitStore(BcNullaryInstructions store);

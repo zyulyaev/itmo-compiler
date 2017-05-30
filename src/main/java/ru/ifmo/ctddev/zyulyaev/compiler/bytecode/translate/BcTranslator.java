@@ -4,6 +4,8 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunctionDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcNullaryInstructions;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPush;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
@@ -74,11 +76,13 @@ public class BcTranslator {
         BcVariableCollector variableCollector = new BcVariableCollector(Collections.emptySet());
         program.getStatements().accept(variableCollector);
         List<BcVariable> mainVariables = new ArrayList<>(variableCollector.getVariables().values());
-        BcFunction mainFunction = new BcFunction("__main", Collections.emptyList(), mainVariables);
+        BcFunction mainFunction = new BcFunction("main", Collections.emptyList(), mainVariables);
         BcFunctionContext mainContext = new BcFunctionContext(variableCollector.getVariables(), functionMap);
         BcMemoryOutput mainOutput = new BcMemoryOutput();
         BcFunctionTranslator mainTranslator = new BcFunctionTranslator(mainContext, mainOutput);
         program.getStatements().accept(mainTranslator);
+        mainOutput.write(new BcPush(0));
+        mainOutput.write(BcNullaryInstructions.RETURN);
 
         return new BcProgram(definitionMap, externalFunctions,
             new BcFunctionDefinition(mainFunction, mainOutput.getStart()));

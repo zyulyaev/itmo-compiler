@@ -11,6 +11,12 @@ public enum BcNullaryInstructions implements BcInstruction {
             return visitor.visitNop(this);
         }
     },
+    POP {
+        @Override
+        public <T> T accept(BcInstructionVisitor<T> visitor) {
+            return visitor.visitPop(this);
+        }
+    },
     LOAD {
         @Override
         public <T> T accept(BcInstructionVisitor<T> visitor) {

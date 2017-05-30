@@ -20,6 +20,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +57,7 @@ public class BcInterpreter implements BcInstructionVisitor<Void> {
         List<BcVariable> parameters = function.getParameters();
         int paramCount = parameters.size();
         for (int i = 0; i < paramCount; i++) {
-            variableAddress.put(parameters.get(i), new BcVarAddress(stack, stack.size() - paramCount + i));
+            variableAddress.put(parameters.get(i), new BcVarAddress(stack, stack.size() - i - 1));
         }
         for (BcVariable variable : function.getDefinedVariables()) {
             variableAddress.put(variable, new BcVarAddress(stack, stack.size()));
@@ -136,6 +137,12 @@ public class BcInterpreter implements BcInstructionVisitor<Void> {
     }
 
     @Override
+    public Void visitPop(BcNullaryInstructions pop) {
+        pop();
+        return null;
+    }
+
+    @Override
     public Void visitLoad(BcNullaryInstructions load) {
         BcValue address = pop();
         switch (address.getType()) {
@@ -184,11 +191,10 @@ public class BcInterpreter implements BcInstructionVisitor<Void> {
             Function<List<BcValue>, BcValue> stub = externalStubs.get(function);
             int paramCount = function.getParameterCount();
             List<BcValue> args = stack.subList(stack.size() - paramCount, stack.size());
+            Collections.reverse(args);
             BcValue result = stub.apply(args);
             args.clear();
-            if (result != null) {
-                push(result);
-            }
+            push(result);
         }
         return null;
     }

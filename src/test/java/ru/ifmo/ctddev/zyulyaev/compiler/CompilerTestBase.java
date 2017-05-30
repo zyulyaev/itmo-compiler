@@ -12,6 +12,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.stream.StreamSupport;
 
 /**
@@ -33,7 +34,7 @@ public abstract class CompilerTestBase {
     @Parameter
     public TestFileSet set;
 
-    private void testInMode(CompilerRunner.Mode mode) throws IOException {
+    private void testInMode(CompilerRunner.Mode mode) throws Exception {
         CompilerRunner runner = new CompilerRunner(mode);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         try (InputStream in = Files.newInputStream(set.getInput());
@@ -42,7 +43,11 @@ public abstract class CompilerTestBase {
             System.setIn(in);
             System.setOut(out);
 
-            runner.run(set.getCode());
+            runner.run(new CompilerRunner.FileSet(
+                set.getCode(),
+                null,
+                null
+            ));
         }
         byte[] ans = buffer.toByteArray();
         byte[] orig = Files.readAllBytes(set.getOrig());
@@ -50,12 +55,35 @@ public abstract class CompilerTestBase {
     }
 
     @Test
-    public void testInterpreter() throws IOException {
+    public void testInterpreter() throws Exception {
         testInMode(CompilerRunner.Mode.INTERPRETER);
     }
 
     @Test
-    public void testStackMachine() throws IOException {
+    public void testStackMachine() throws Exception {
         testInMode(CompilerRunner.Mode.STACK_MACHINE);
+    }
+
+    @Test
+    public void testCompiler() throws Exception {
+        CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER);
+        Path asm = Paths.get("target","test.s");
+        Path output = Paths.get("target","test");
+        Path log = Paths.get("target", "test.log");
+        try {
+            runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output));
+            new ProcessBuilder(output.toString())
+                .redirectInput(set.getInput().toFile())
+                .redirectOutput(log.toFile())
+                .start().waitFor();
+
+            byte[] ans = Files.readAllBytes(log);
+            byte[] orig = Files.readAllBytes(set.getOrig());
+            Assert.assertArrayEquals(orig, ans);
+        } finally {
+            Files.deleteIfExists(asm);
+            Files.deleteIfExists(output);
+            Files.deleteIfExists(log);
+        }
     }
 }

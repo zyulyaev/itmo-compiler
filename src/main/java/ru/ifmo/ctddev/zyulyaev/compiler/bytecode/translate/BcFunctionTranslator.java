@@ -108,7 +108,8 @@ public class BcFunctionTranslator implements AsgStatementVisitor<BcLine>, AsgExp
 
     @Override
     public BcLine visit(AsgFunctionCallStatement functionCallStatement) {
-        return functionCallStatement.getExpression().accept(this);
+        functionCallStatement.getExpression().accept(this);
+        return output.write(BcNullaryInstructions.POP);
     }
 
     @Override
@@ -149,8 +150,10 @@ public class BcFunctionTranslator implements AsgStatementVisitor<BcLine>, AsgExp
 
     @Override
     public BcLine visit(AsgFunctionCallExpression functionCall) {
-        for (AsgExpression arg : functionCall.getArguments()) {
-            arg.accept(this);
+        List<AsgExpression> args = functionCall.getArguments();
+        int argsCount = args.size();
+        for (int i = argsCount - 1; i >= 0; i--) {
+            args.get(i).accept(this);
         }
         return output.write(new BcCall(context.getFunction(functionCall.getFunction())));
     }

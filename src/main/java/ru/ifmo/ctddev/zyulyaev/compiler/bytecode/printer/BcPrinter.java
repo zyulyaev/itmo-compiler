@@ -98,6 +98,12 @@ public class BcPrinter implements BcInstructionVisitor<Void>, Closeable {
     }
 
     @Override
+    public Void visitPop(BcNullaryInstructions pop) {
+        out.println("pop");
+        return null;
+    }
+
+    @Override
     public Void visitLoad(BcNullaryInstructions load) {
         out.println("load");
         return null;
