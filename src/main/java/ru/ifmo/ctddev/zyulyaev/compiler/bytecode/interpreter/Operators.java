@@ -1,7 +1,6 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter;
 
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcArrayPtrValue;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcIntValue;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcScalar;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValueType;
 import ru.ifmo.ctddev.zyulyaev.compiler.lang.BinaryOperator;
@@ -14,25 +13,14 @@ class Operators {
     static BcValue apply(BcValue left, BcValue right, BinaryOperator operator) {
         BcValueType leftType = left.getType();
         BcValueType rightType = right.getType();
-        if (leftType == BcValueType.INT && rightType == BcValueType.INT) {
-            return applyInt(left.asInt(), right.asInt(), operator);
-        } else if (leftType == BcValueType.PTR && rightType == BcValueType.INT) {
-            return applyPtr(left.asPtr(), right.asInt(), operator);
+        if (leftType == BcValueType.SCALAR && rightType == BcValueType.SCALAR) {
+            return applyScalar(left.asScalar(), right.asScalar(), operator);
         } else {
             throw new UnsupportedOperationException("Operations on " + leftType + " and " + rightType + " are not supported");
         }
     }
 
-    private static BcValue applyPtr(BcArrayPtrValue left, BcIntValue right, BinaryOperator operator) {
-        switch (operator) {
-        case ADD:
-            return new BcArrayPtrValue(left.getValues(), left.getIndex() + right.getValue());
-        }
-        throw new UnsupportedOperationException("Operator " + operator + " is not supported on PTR and INT");
-    }
-
-
-    private static BcValue applyInt(BcIntValue left, BcIntValue right, BinaryOperator operator) {
+    private static BcValue applyScalar(BcScalar left, BcScalar right, BinaryOperator operator) {
         int lValue = left.getValue();
         int rValue = right.getValue();
         switch (operator) {
@@ -54,14 +42,14 @@ class Operators {
         case OR: return boolValue(lValue != 0 || rValue != 0);
         case WAT: return boolValue(lValue != 0 || rValue != 0);
         }
-        throw new UnsupportedOperationException("Operator " + operator + " is not supported on INT and INT");
+        throw new UnsupportedOperationException("Operator " + operator + " is not supported on scalars");
     }
 
-    private static BcIntValue intValue(int value) {
-        return new BcIntValue(value);
+    private static BcScalar intValue(int value) {
+        return new BcScalar(value);
     }
 
-    private static BcIntValue boolValue(boolean value) {
-        return new BcIntValue(value ? 1 : 0);
+    private static BcScalar boolValue(boolean value) {
+        return new BcScalar(value ? 1 : 0);
     }
 }

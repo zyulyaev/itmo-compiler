@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.util.List;
+
 /**
  * @author zyulyaev
  * @since 28.05.2017
@@ -13,5 +15,6 @@ import lombok.ToString;
 @AllArgsConstructor
 public class BcFunctionDefinition {
     private final BcFunction function;
-    private final BcLine body;
+    private final List<BcVariable> localVariables;
+    private final List<BcLine> body;
 }

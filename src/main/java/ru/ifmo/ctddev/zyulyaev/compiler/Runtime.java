@@ -13,21 +13,21 @@ import java.util.function.Function;
  * @since 27.05.2017
  */
 public abstract class Runtime<A, R> {
-    private static final ExternalFunction readFunction = new ExternalFunction("read", 0);
-    private static final ExternalFunction writeFunction = new ExternalFunction("write", 1);
+    public static final ExternalFunction readFunction = new ExternalFunction("read", 0);
+    public static final ExternalFunction writeFunction = new ExternalFunction("write", 1);
 
-    private static final ExternalFunction strlenFunction = new ExternalFunction("strlen", 1);
-    private static final ExternalFunction strgetFunction = new ExternalFunction("strget", 2);
-    private static final ExternalFunction strsubFunction = new ExternalFunction("strsub", 3);
-    private static final ExternalFunction strsetFunction = new ExternalFunction("strset", 3);
-    private static final ExternalFunction strcatFunction = new ExternalFunction("strcat", 2);
-    private static final ExternalFunction strcmpFunction = new ExternalFunction("strcmp", 2);
-    private static final ExternalFunction strdupFunction = new ExternalFunction("strdup", 1);
-    private static final ExternalFunction strmakeFunction = new ExternalFunction("strmake", 2);
+    public static final ExternalFunction strlenFunction = new ExternalFunction("strlen", 1);
+    public static final ExternalFunction strgetFunction = new ExternalFunction("strget", 2);
+    public static final ExternalFunction strsubFunction = new ExternalFunction("strsub", 3);
+    public static final ExternalFunction strsetFunction = new ExternalFunction("strset", 3);
+    public static final ExternalFunction strcatFunction = new ExternalFunction("strcat", 2);
+    public static final ExternalFunction strcmpFunction = new ExternalFunction("strcmp", 2);
+    public static final ExternalFunction strdupFunction = new ExternalFunction("strdup", 1);
+    public static final ExternalFunction strmakeFunction = new ExternalFunction("strmake", 2);
 
-    private static final ExternalFunction arrlenFunction = new ExternalFunction("arrlen", 1);
-    private static final ExternalFunction arrmakeFunction = new ExternalFunction("arrmake", 2);
-    private static final ExternalFunction ArrmakeFunction = new ExternalFunction("Arrmake", 2);
+    public static final ExternalFunction arrlenFunction = new ExternalFunction("arrlen", 1);
+    public static final ExternalFunction arrmakeFunction = new ExternalFunction("arrmake", 2);
+    public static final ExternalFunction ArrmakeFunction = new ExternalFunction("Arrmake", 2);
 
     private final Map<ExternalFunction, Function<A, R>> functionDefinitions;
 

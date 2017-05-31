@@ -7,15 +7,11 @@ package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value;
 public interface BcValue {
     BcValueType getType();
 
-    default BcIntValue asInt() {
-        return (BcIntValue) this;
+    default BcScalar asScalar() {
+        return (BcScalar) this;
     }
 
-    default BcArrayPtrValue asPtr() {
-        return (BcArrayPtrValue) this;
-    }
-
-    default BcVarAddress asVar() {
-        return (BcVarAddress) this;
+    default BcPointer asPtr() {
+        return (BcPointer) this;
     }
 }

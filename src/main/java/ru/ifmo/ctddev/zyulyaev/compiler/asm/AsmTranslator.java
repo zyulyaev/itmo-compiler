@@ -5,6 +5,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmInstruction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmNullary;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmUnary;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.line.AsmGlobl;
+import ru.ifmo.ctddev.zyulyaev.compiler.asm.line.AsmInstuctionLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.line.AsmLabelLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.line.AsmLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.line.AsmSectionLine;
@@ -20,18 +21,24 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcJump;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcNullaryInstructions;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPush;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPushAddress;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStringInit;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcUnset;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcInstructionLine;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabelLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLine;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLineVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -39,18 +46,21 @@ import java.util.stream.Stream;
  * @since 29.05.2017
  */
 public class AsmTranslator {
-    private static final AsmSymbol MALLOC = new AsmSymbol("_malloc");
-    private static final AsmSymbol MEMCPY = new AsmSymbol("_memcpy");
-
-    private final Map<BcFunction, AsmSymbol> symbolMap = new HashMap<>();
     private final Set<String> symbols = new HashSet<>();
+    private final Map<BcFunction, AsmSymbol> symbolMap = new HashMap<>();
+
+    private final AsmSymbol malloc = reserve("_malloc");
+    private final AsmSymbol memcpy = reserve("_memcpy");
+    private final AsmSymbol arrget = reserve("_rc_arrget");
+    private final AsmSymbol arrinit = reserve("_rc_arrinit");
 
     private final AsmOutput output = new AsmOutput();
 
     public List<AsmLine> translate(BcProgram program) {
         symbolMap.put(program.getMain().getFunction(), reserve("_main"));
-        Stream.of(program.getFunctions().keySet(), program.getExternalFunctions().keySet())
-            .flatMap(Collection::stream)
+        program.getExternalFunctions().keySet()
+            .forEach(function -> symbolMap.put(function, reserve("_rc_" + function.getName())));
+        program.getFunctions().keySet()
             .forEach(function -> symbolMap.put(function, reserve("_" + function.getName())));
 
         output.write(AsmSectionLine.TEXT);
@@ -64,27 +74,32 @@ public class AsmTranslator {
 
     private void translateFunction(BcFunctionDefinition definition) {
         BcFunction function = definition.getFunction();
-        int variables = function.getDefinedVariables().size();
-        Map<BcLine, AsmSymbol> lineLabels = buildLineLabels(definition);
-        FunctionContext context = new FunctionContext(function, lineLabels);
+        int variables = definition.getLocalVariables().size();
+        Map<BcLabel, AsmSymbol> lineLabels = buildLineLabels(definition);
+        FunctionContext context = new FunctionContext(definition, lineLabels);
         output.write(new AsmLabelLine(symbolMap.get(function)));
         output.write(AsmBinary.ENTER.create(new AsmImmediate(0), new AsmImmediate(variables * 4)));
-        for (BcLine line = definition.getBody(); line != null; line = line.getNext()) {
-            line.getInstruction().accept(context).forEach(output::write);
-            if (lineLabels.containsKey(line)) {
-                output.write(new AsmLabelLine(lineLabels.get(line)));
-            }
+        for (BcLine line : definition.getBody()) {
+            line.accept(context).forEach(output::write);
         }
     }
 
-    private Map<BcLine, AsmSymbol> buildLineLabels(BcFunctionDefinition definition) {
-        Map<BcLine, AsmSymbol> result = new HashMap<>();
-        int counter = 0;
-        for (BcLine line = definition.getBody(); line != null; line = line.getNext()) {
-            if (line.getInstruction() instanceof BcJump) {
-                BcLine target = ((BcJump) line.getInstruction()).getAfterLine();
-                result.put(target, reserve(definition.getFunction().getName() + "_" + (counter++)));
-            }
+    private Map<BcLabel, AsmSymbol> buildLineLabels(BcFunctionDefinition definition) {
+        Map<BcLabel, AsmSymbol> result = new HashMap<>();
+        for (BcLine line : definition.getBody()) {
+            line.accept(new BcLineVisitor<Void>() {
+                @Override
+                public Void visit(BcInstructionLine instructionLine) {
+                    return null;
+                }
+
+                @Override
+                public Void visit(BcLabelLine labelLine) {
+                    BcLabel label = labelLine.getLabel();
+                    result.put(label, reserve(definition.getFunction().getName() + "_" + label.getName()));
+                    return null;
+                }
+            });
         }
         return result;
     }
@@ -96,33 +111,55 @@ public class AsmTranslator {
         return new AsmSymbol(symbol);
     }
 
-    private class FunctionContext implements BcInstructionVisitor<Stream<AsmInstruction>> {
+    private class FunctionContext implements BcInstructionVisitor<Stream<AsmInstruction>>,
+        BcLineVisitor<Stream<AsmLine>>
+    {
         private final Map<BcVariable, AsmPointer> variables = new HashMap<>();
-        private final Map<BcLine, AsmSymbol> lineLabels;
+        private final Map<BcLabel, AsmSymbol> lineLabels;
 
-        private FunctionContext(BcFunction function, Map<BcLine, AsmSymbol> lineLabels) {
+        private FunctionContext(BcFunctionDefinition definition, Map<BcLabel, AsmSymbol> lineLabels) {
             this.lineLabels = lineLabels;
+            BcFunction function = definition.getFunction();
             for (int i = 0; i < function.getParameters().size(); i++) {
                 BcVariable variable = function.getParameters().get(i);
                 variables.put(variable, new AsmPointer(AsmRegister.EBP, 4 * i + 8));
             }
-            for (int i = 0; i < function.getDefinedVariables().size(); i++) {
-                BcVariable variable = function.getDefinedVariables().get(i);
-                variables.put(variable, new AsmPointer(AsmRegister.EBP, -4 * i));
+            for (int i = 0; i < definition.getLocalVariables().size(); i++) {
+                BcVariable variable = definition.getLocalVariables().get(i);
+                variables.put(variable, new AsmPointer(AsmRegister.EBP, -4 * i - 4));
             }
         }
 
         @Override
         public Stream<AsmInstruction> visit(BcArrayInit arrayInit) {
-            int bytes = arrayInit.getSize() * 4;
+            int size = arrayInit.getSize();
+            AsmPointer target = variables.get(arrayInit.getTarget());
             return Stream.of(
-                AsmUnary.PUSH.create(new AsmImmediate(bytes)),
-                AsmUnary.CALL.create(MALLOC),
-                AsmBinary.LEA.create(AsmRegister.ECX, new AsmPointer(AsmRegister.ESP, 4)),
-                AsmUnary.PUSH.create(AsmRegister.ECX),
+                AsmUnary.PUSH.create(new AsmImmediate(size)),
+                AsmBinary.LEA.create(AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 4)),
                 AsmUnary.PUSH.create(AsmRegister.EAX),
-                AsmUnary.CALL.create(MEMCPY),
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(12 + bytes))
+                AsmUnary.CALL.create(arrinit),
+                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(size * 4 + 8)),
+                AsmBinary.MOV.create(target, AsmRegister.EAX)
+            );
+        }
+
+        @Override
+        public Stream<AsmInstruction> visit(BcStringInit stringInit) {
+            String value = stringInit.getValue();
+            int chars = stringInit.getValue().length();
+            AsmPointer target = variables.get(stringInit.getTarget());
+            return Stream.concat(
+                Stream.of(
+                    AsmUnary.PUSH.create(new AsmImmediate(chars + 1)),
+                    AsmUnary.CALL.create(malloc),
+                    AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4)),
+                    AsmBinary.MOV.create(target, AsmRegister.EAX),
+                    AsmBinary.MOV.create(new AsmPointer(AsmRegister.EAX, chars), new AsmImmediate(0))
+                ),
+                IntStream.range(0, chars)
+                    .mapToObj(i -> AsmBinary.MOV.create(new AsmPointer(AsmRegister.EAX, i),
+                        new AsmImmediate(value.charAt(i))))
             );
         }
 
@@ -133,7 +170,7 @@ public class AsmTranslator {
 
         @Override
         public Stream<AsmInstruction> visit(BcJump jump) {
-            AsmSymbol symbol = lineLabels.get(jump.getAfterLine());
+            AsmSymbol symbol = lineLabels.get(jump.getLabel());
             switch (jump.getCondition()) {
             case ALWAYS: return Stream.of(AsmUnary.JMP.create(symbol));
             case IF_NOT_ZERO:
@@ -209,6 +246,36 @@ public class AsmTranslator {
                 AsmNullary.LEAVE,
                 AsmNullary.RET
             );
+        }
+
+        @Override
+        public Stream<AsmInstruction> visit(BcUnset unset) {
+            // TODO decrement reference counter
+            return Stream.empty();
+        }
+
+        @Override
+        public Stream<AsmInstruction> visitIndex(BcNullaryInstructions index) {
+            return Stream.of(
+                AsmUnary.POP.create(AsmRegister.ECX),
+                AsmUnary.POP.create(AsmRegister.EAX),
+                // todo prettify
+                AsmUnary.PUSH.create(AsmRegister.ECX),
+                AsmUnary.PUSH.create(AsmRegister.EAX),
+                AsmUnary.CALL.create(arrget),
+                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(8)),
+                AsmUnary.PUSH.create(AsmRegister.EAX)
+            );
+        }
+
+        @Override
+        public Stream<AsmLine> visit(BcInstructionLine instructionLine) {
+            return instructionLine.getInstruction().accept(this).map(AsmInstuctionLine::new);
+        }
+
+        @Override
+        public Stream<AsmLine> visit(BcLabelLine labelLine) {
+            return Stream.of(new AsmLabelLine(lineLabels.get(labelLine.getLabel())));
         }
     }
 }

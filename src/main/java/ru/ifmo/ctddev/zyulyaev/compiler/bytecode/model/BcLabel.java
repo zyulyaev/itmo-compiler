@@ -4,16 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 
-import java.util.List;
-
 /**
  * @author zyulyaev
- * @since 28.05.2017
+ * @since 31.05.2017
  */
 @Getter
 @ToString
 @AllArgsConstructor
-public class BcFunction {
+public class BcLabel {
     private final String name;
-    private final List<BcVariable> parameters;
 }

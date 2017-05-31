@@ -1,7 +1,7 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction;
 
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLine;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
 
 /**
  * @author zyulyaev
@@ -10,7 +10,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLine;
 @Data
 public class BcJump implements BcInstruction {
     private final Condition condition;
-    private final BcLine afterLine;
+    private final BcLabel label;
 
     @Override
     public <T> T accept(BcInstructionVisitor<T> visitor) {

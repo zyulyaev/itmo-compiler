@@ -1,7 +1,6 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.interpreter;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.Value;
 import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
 
@@ -21,11 +20,6 @@ public class Interpreter {
             program.getExternalDefinitions().inverse(), externalFunctionDefinitionMap);
         InterpreterContext rootContext = new InterpreterContext(table, null);
         StatementInterpreter interpreter = rootContext.asStatementInterpreter();
-        for (AsgStatement statement : program.getStatements().getStatements()) {
-            Value result = statement.accept(interpreter);
-            if (result != null) {
-                break;
-            }
-        }
+        program.getMain().accept(interpreter);
     }
 }

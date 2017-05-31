@@ -7,6 +7,8 @@ package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction;
 public interface BcInstructionVisitor<T> {
     T visit(BcArrayInit arrayInit);
 
+    T visit(BcStringInit stringInit);
+
     T visit(BcBinOp binOp);
 
     T visit(BcJump jump);
@@ -26,4 +28,8 @@ public interface BcInstructionVisitor<T> {
     T visitStore(BcNullaryInstructions store);
 
     T visitReturn(BcNullaryInstructions ret);
+
+    T visit(BcUnset unset);
+
+    T visitIndex(BcNullaryInstructions index);
 }

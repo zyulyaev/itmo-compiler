@@ -4,15 +4,14 @@ import lombok.Data;
 
 /**
  * @author zyulyaev
- * @since 28.05.2017
+ * @since 31.05.2017
  */
 @Data
-public class BcArrayPtrValue implements BcValue {
-    private final BcValue[] values;
-    private final int index;
+public class BcScalar implements BcValue {
+    private final int value;
 
     @Override
     public BcValueType getType() {
-        return BcValueType.PTR;
+        return BcValueType.SCALAR;
     }
 }

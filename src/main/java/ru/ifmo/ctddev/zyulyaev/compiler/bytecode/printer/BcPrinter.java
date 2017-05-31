@@ -8,121 +8,121 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcJump;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcNullaryInstructions;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPush;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPushAddress;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStringInit;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcUnset;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcInstructionLine;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabelLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLine;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLineVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
 
 /**
  * @author zyulyaev
  * @since 29.05.2017
  */
-public class BcPrinter implements BcInstructionVisitor<Void>, Closeable {
-    private final PrintWriter out;
-
-    public BcPrinter(PrintWriter out) {
-        this.out = out;
-    }
-
-    public void print(BcProgram program) {
+public class BcPrinter implements BcLineVisitor<String>, BcInstructionVisitor<String> {
+    public void print(BcProgram program, PrintWriter out) {
         for (BcFunctionDefinition definition : program.getFunctions().values()) {
             out.printf("Definition of \"%s\"\n", definition.getFunction().getName());
-            printBody(definition.getBody());
+            printBody(definition.getBody(), out);
             out.println();
         }
 
         out.println("Main definition");
-        printBody(program.getMain().getBody());
+        printBody(program.getMain().getBody(), out);
     }
 
-    private void printBody(BcLine body) {
-        for (BcLine line = body; line != null; line = line.getNext()) {
-            line.getInstruction().accept(this);
-        }
-    }
-
-    @Override
-    public Void visit(BcArrayInit arrayInit) {
-        out.println("ainit");
-        return null;
+    private void printBody(List<BcLine> body, PrintWriter out) {
+        body.forEach(line -> out.println(line.accept(this)));
     }
 
     @Override
-    public Void visit(BcBinOp binOp) {
-        out.printf("binop %s\n", binOp.getOperator());
-        return null;
+    public String visit(BcArrayInit arrayInit) {
+        return "init_array " + arrayInit.getTarget().getName() + " " + arrayInit.getSize();
     }
 
     @Override
-    public Void visit(BcJump jump) {
+    public String visit(BcStringInit stringInit) {
+        return "init_string " + stringInit.getTarget().getName() + " " + stringInit.getValue();
+    }
+
+    @Override
+    public String visit(BcBinOp binOp) {
+        return "binop " + binOp.getOperator();
+    }
+
+    @Override
+    public String visit(BcJump jump) {
+        String target = jump.getLabel().getName();
         switch (jump.getCondition()) {
-        case ALWAYS:
-            out.println("jmp");
-            break;
-        case IF_ZERO:
-            out.println("jz");
-            break;
-        case IF_NOT_ZERO:
-            out.println("jnz");
-            break;
+        case ALWAYS: return "jmp " + target;
+        case IF_ZERO: return "jz " + target;
+        case IF_NOT_ZERO: return "jnz " + target;
         }
-        return null;
+        throw new UnsupportedOperationException("Jump condition not supported: " + jump.getCondition());
     }
 
     @Override
-    public Void visit(BcPush push) {
-        out.printf("push %d\n", push.getValue());
-        return null;
+    public String visit(BcPush push) {
+        return "push " + push.getValue();
     }
 
     @Override
-    public Void visit(BcCall call) {
-//        out.printf("call %s\n", call.getTarget().getName());
-        out.println("call");
-        return null;
+    public String visit(BcCall call) {
+        return "call " + call.getTarget().getName();
     }
 
     @Override
-    public Void visit(BcPushAddress pushAddress) {
-        out.printf("pusha %s\n", pushAddress.getTarget().getName());
-        return null;
+    public String visit(BcPushAddress pushAddress) {
+        return "pusha " + pushAddress.getTarget().getName();
     }
 
     @Override
-    public Void visitNop(BcNullaryInstructions nop) {
-        out.println("nop");
-        return null;
+    public String visitNop(BcNullaryInstructions nop) {
+        return "nop";
     }
 
     @Override
-    public Void visitPop(BcNullaryInstructions pop) {
-        out.println("pop");
-        return null;
+    public String visitPop(BcNullaryInstructions pop) {
+        return "pop";
     }
 
     @Override
-    public Void visitLoad(BcNullaryInstructions load) {
-        out.println("load");
-        return null;
+    public String visitLoad(BcNullaryInstructions load) {
+        return "load";
     }
 
     @Override
-    public Void visitStore(BcNullaryInstructions store) {
-        out.println("store");
-        return null;
+    public String visitStore(BcNullaryInstructions store) {
+        return "store";
     }
 
     @Override
-    public Void visitReturn(BcNullaryInstructions ret) {
-        out.println("ret");
-        return null;
+    public String visitReturn(BcNullaryInstructions ret) {
+        return "ret";
     }
 
     @Override
-    public void close() throws IOException {
-        out.close();
+    public String visit(BcUnset unset) {
+        return "unset " + unset.getTarget().getName();
+    }
+
+    @Override
+    public String visitIndex(BcNullaryInstructions index) {
+        return "index";
+    }
+
+    @Override
+    public String visit(BcInstructionLine instructionLine) {
+        return "\t" + instructionLine.getInstruction().accept(this);
+    }
+
+    @Override
+    public String visit(BcLabelLine labelLine) {
+        return labelLine.getLabel().getName() + ":";
     }
 }

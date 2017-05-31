@@ -18,6 +18,7 @@ public enum AsmBinary {
     TEST("test"),
 
     MOV("movl"),
+    MOVB("movb"),
     LEA("lea"),
     CMP("cmp"),
     ENTER("enter");

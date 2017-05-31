@@ -5,12 +5,12 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
 
 /**
  * @author zyulyaev
- * @since 28.05.2017
+ * @since 30.05.2017
  */
 @Data
-public class BcArrayInit implements BcInstruction {
+public class BcStringInit implements BcInstruction {
     private final BcVariable target;
-    private final int size;
+    private final String value;
 
     @Override
     public <T> T accept(BcInstructionVisitor<T> visitor) {

@@ -34,5 +34,11 @@ public enum BcNullaryInstructions implements BcInstruction {
         public <T> T accept(BcInstructionVisitor<T> visitor) {
             return visitor.visitReturn(this);
         }
+    },
+    INDEX {
+        @Override
+        public <T> T accept(BcInstructionVisitor<T> visitor) {
+            return visitor.visitIndex(this);
+        }
     }
 }

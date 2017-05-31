@@ -1,90 +1,233 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunctionDefinition;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import org.jetbrains.annotations.NotNull;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpressionVisitor;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLiteralExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgAssignment;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgForStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgFunctionCallStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgIfStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgRepeatStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgReturnStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementList;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementVisitor;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgWhileStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcArrayInit;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcBinOp;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcCall;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcJump;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcNullaryInstructions;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPush;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPushAddress;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStringInit;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcUnset;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
+import java.io.Closeable;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * @author zyulyaev
  * @since 28.05.2017
  */
-public class BcTranslator {
-    public BcProgram translate(AsgProgram program) {
-        Map<BcFunction, ExternalFunction> externalFunctions = new HashMap<>();
-        Map<AsgFunction, BcFunction> functionMap = new HashMap<>();
+public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVisitor<Void>, Closeable {
+    private final BcContext context;
+    private final BcOutput output;
 
-        for (Map.Entry<ExternalFunction, AsgFunction> entry : program.getExternalDefinitions().entrySet()) {
-            AsgFunction asgFunction = entry.getValue();
-            BcFunction bcFunction = new BcFunction(
-                asgFunction.getName(),
-                asgFunction.getParameters().stream()
-                    .map(param -> new BcVariable(param.getName()))
-                    .collect(Collectors.toList()),
-                Collections.emptyList()
-            );
-            externalFunctions.put(bcFunction, entry.getKey());
-            functionMap.put(asgFunction, bcFunction);
+    public BcTranslator(BcContext context, BcOutput output) {
+        this.context = context;
+        this.output = output;
+    }
+
+    @NotNull
+    private BcTranslator createChild() {
+        return new BcTranslator(new BcContext(context), output);
+    }
+
+    private void translateNested(AsgExpression expression) {
+        try (BcTranslator child = createChild()) {
+            expression.accept(child);
+        }
+    }
+
+    private void translateNested(AsgStatement statement) {
+        try (BcTranslator child = createChild()) {
+            statement.accept(child);
+        }
+    }
+
+    // STATEMENTS
+    @Override
+    public Void visit(AsgAssignment assignment) {
+        translateLeftValue(assignment.getLeftValue());
+        try (BcTranslator child = createChild()) {
+            assignment.getExpression().accept(child);
+            output.write(BcNullaryInstructions.STORE);
+        }
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgIfStatement ifStatement) {
+        translateNested(ifStatement.getCondition());
+        BcLabel elseBranch = context.reserveLabel("else");
+        output.write(new BcJump(BcJump.Condition.IF_ZERO, elseBranch));
+        translateNested(ifStatement.getPositive());
+
+        if (ifStatement.getNegative() != null) {
+            BcLabel continueBranch = context.reserveLabel("cont");
+            output.write(new BcJump(BcJump.Condition.ALWAYS, continueBranch));
+            output.write(elseBranch);
+            translateNested(ifStatement.getNegative());
+            output.write(continueBranch);
+        } else {
+            output.write(elseBranch);
         }
 
-        Map<AsgFunction, Map<AsgVariable, BcVariable>> variableMaps = new HashMap<>();
-        List<AsgFunctionDefinition> definitions = program.getFunctionDefinitions();
+        return null;
+    }
 
-        for (AsgFunctionDefinition definition : definitions) {
-            Map<AsgVariable, BcVariable> variables = new HashMap<>();
-            List<BcVariable> parameters = new ArrayList<>();
-            for (AsgVariable parameter : definition.getFunction().getParameters()) {
-                BcVariable bcParameter = new BcVariable(parameter.getName());
-                parameters.add(bcParameter);
-                variables.put(parameter, bcParameter);
-            }
-            BcVariableCollector variableCollector = new BcVariableCollector(variables.keySet());
-            definition.getBody().accept(variableCollector);
-            Map<AsgVariable, BcVariable> definedVariablesMap = variableCollector.getVariables();
-            List<BcVariable> definedVariables = new ArrayList<>(definedVariablesMap.values());
-            variables.putAll(definedVariablesMap);
-            BcFunction bcFunction = new BcFunction(definition.getFunction().getName(), parameters, definedVariables);
-            functionMap.put(definition.getFunction(), bcFunction);
-            variableMaps.put(definition.getFunction(), variables);
+    @Override
+    public Void visit(AsgStatementList statementList) {
+        statementList.getStatements().forEach(statement -> statement.accept(this));
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgForStatement forStatement) {
+        try (BcTranslator outerChild = createChild()) {
+            forStatement.getInitialization().accept(outerChild);
+            BcLabel check = context.reserveLabel("check");
+            output.write(check);
+            forStatement.getTermination().accept(outerChild);
+            BcLabel termination = context.reserveLabel("term");
+            output.write(new BcJump(BcJump.Condition.IF_ZERO, termination));
+            outerChild.translateNested(forStatement.getBody());
+            forStatement.getIncrement().accept(outerChild);
+            output.write(new BcJump(BcJump.Condition.ALWAYS, check));
+            output.write(termination);
         }
+        return null;
+    }
 
-        Map<BcFunction, BcFunctionDefinition> definitionMap = new HashMap<>();
+    @Override
+    public Void visit(AsgWhileStatement whileStatement) {
+        BcLabel whileStart = context.reserveLabel("while");
+        output.write(whileStart);
+        translateNested(whileStatement.getCondition());
+        BcLabel termination = context.reserveLabel("term");
+        output.write(new BcJump(BcJump.Condition.IF_ZERO, termination));
+        translateNested(whileStatement.getBody());
+        output.write(new BcJump(BcJump.Condition.ALWAYS, whileStart));
+        output.write(termination);
+        return null;
+    }
 
-        for (AsgFunctionDefinition definition : definitions) {
-            BcFunctionContext context = new BcFunctionContext(variableMaps.get(definition.getFunction()), functionMap);
-            BcMemoryOutput output = new BcMemoryOutput();
-            BcFunctionTranslator translator = new BcFunctionTranslator(context, output);
-            definition.getBody().accept(translator);
-            BcFunction function = functionMap.get(definition.getFunction());
-            definitionMap.put(function, new BcFunctionDefinition(function, output.getStart()));
+    @Override
+    public Void visit(AsgRepeatStatement repeatStatement) {
+        BcLabel repeatStart = context.reserveLabel("repeat");
+        output.write(repeatStart);
+        try (BcTranslator child = createChild()) {
+            repeatStatement.getBody().accept(child);
+            repeatStatement.getCondition().accept(child);
         }
+        output.write(new BcJump(BcJump.Condition.IF_ZERO, repeatStart));
+        return null;
+    }
 
-        BcVariableCollector variableCollector = new BcVariableCollector(Collections.emptySet());
-        program.getStatements().accept(variableCollector);
-        List<BcVariable> mainVariables = new ArrayList<>(variableCollector.getVariables().values());
-        BcFunction mainFunction = new BcFunction("main", Collections.emptyList(), mainVariables);
-        BcFunctionContext mainContext = new BcFunctionContext(variableCollector.getVariables(), functionMap);
-        BcMemoryOutput mainOutput = new BcMemoryOutput();
-        BcFunctionTranslator mainTranslator = new BcFunctionTranslator(mainContext, mainOutput);
-        program.getStatements().accept(mainTranslator);
-        mainOutput.write(new BcPush(0));
-        mainOutput.write(BcNullaryInstructions.RETURN);
+    @Override
+    public Void visit(AsgFunctionCallStatement functionCallStatement) {
+        translateNested(functionCallStatement.getExpression());
+        output.write(BcNullaryInstructions.POP);
+        return null;
+    }
 
-        return new BcProgram(definitionMap, externalFunctions,
-            new BcFunctionDefinition(mainFunction, mainOutput.getStart()));
+    @Override
+    public Void visit(AsgReturnStatement returnStatement) {
+        translateNested(returnStatement.getValue());
+        output.write(new BcJump(BcJump.Condition.ALWAYS, context.getReturnLabel()));
+        return null;
+    }
+
+    // EXPRESSIONS
+
+    @Override
+    public Void visit(AsgLiteralExpression<?> literal) {
+        switch (literal.getType()) {
+        case INT:
+            output.write(new BcPush((Integer) literal.getValue()));
+            return null;
+        case NULL:
+            output.write(new BcPush(0));
+            return null;
+        case STRING:
+            BcVariable tmp = context.reserveVariable();
+            output.write(new BcStringInit(tmp, (String) literal.getValue()));
+            output.write(new BcPushAddress(tmp));
+            output.write(BcNullaryInstructions.LOAD);
+            return null;
+        }
+        throw new UnsupportedOperationException("Literal type not supported: " + literal.getType());
+    }
+
+    @Override
+    public Void visit(AsgLeftValueExpression leftValue) {
+        translateLeftValue(leftValue);
+        output.write(BcNullaryInstructions.LOAD);
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgBinaryExpression binaryExpression) {
+        binaryExpression.getLeft().accept(this);
+        binaryExpression.getRight().accept(this);
+        output.write(new BcBinOp(binaryExpression.getOperator()));
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgFunctionCallExpression functionCall) {
+        List<AsgExpression> args = functionCall.getArguments();
+        int argsCount = args.size();
+        for (int i = argsCount - 1; i >= 0; i--) {
+            args.get(i).accept(this);
+        }
+        output.write(new BcCall(context.getFunction(functionCall.getFunction())));
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgArrayExpression arrayExpression) {
+        List<AsgExpression> values = arrayExpression.getValues();
+        for (int i = values.size() - 1; i >= 0; i--) {
+            values.get(i).accept(this);
+        }
+        BcVariable tmp = context.reserveVariable();
+        output.write(new BcArrayInit(tmp, values.size()));
+        output.write(new BcPushAddress(tmp));
+        output.write(BcNullaryInstructions.LOAD);
+        return null;
+    }
+
+    private void translateLeftValue(AsgLeftValueExpression leftValue) {
+        BcVariable variable = context.getVariable(leftValue.getVariable());
+        output.write(new BcPushAddress(variable));
+        for (AsgExpression index : leftValue.getIndexes()) {
+            output.write(BcNullaryInstructions.LOAD);
+            translateNested(index);
+            output.write(BcNullaryInstructions.INDEX);
+        }
+    }
+
+    @Override
+    public void close() {
+        context.cleanup().forEach(var -> output.write(new BcUnset(var)));
     }
 }
