@@ -7,6 +7,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.IntValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.StringValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.Value;
 
+import java.io.PrintWriter;
 import java.util.List;
 import java.util.Scanner;
 import java.util.stream.Stream;
@@ -16,17 +17,23 @@ import java.util.stream.Stream;
  * @since 29.05.2017
  */
 public class InterpreterRuntime extends Runtime<List<Value>, Value> {
-    private final Scanner inputScanner = new Scanner(System.in);
+    private final Scanner in;
+    private final PrintWriter out;
+
+    public InterpreterRuntime(Scanner in, PrintWriter out) {
+        this.in = in;
+        this.out = out;
+    }
 
     @Override
     protected Value readFunctionStub(List<Value> args) {
-        System.out.print("> ");
-        return new IntValue(inputScanner.nextInt());
+        out.print("> ");
+        return new IntValue(in.nextInt());
     }
 
     @Override
     protected Value writeFunctionStub(List<Value> args) {
-        System.out.println(args.get(0).asInt().getValue());
+        out.println(args.get(0).asInt().getValue());
         return null;
     }
 

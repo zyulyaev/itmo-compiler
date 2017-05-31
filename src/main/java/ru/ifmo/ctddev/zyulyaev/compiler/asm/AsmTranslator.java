@@ -164,10 +164,10 @@ public class AsmTranslator {
                     AsmUnary.CALL.create(malloc),
                     AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4)),
                     AsmBinary.MOV.create(target, AsmRegister.EAX),
-                    AsmBinary.MOV.create(new AsmPointer(AsmRegister.EAX, chars), new AsmImmediate(0))
+                    AsmBinary.MOVB.create(new AsmPointer(AsmRegister.EAX, chars), new AsmImmediate(0))
                 ),
                 IntStream.range(0, chars)
-                    .mapToObj(i -> AsmBinary.MOV.create(new AsmPointer(AsmRegister.EAX, i),
+                    .mapToObj(i -> AsmBinary.MOVB.create(new AsmPointer(AsmRegister.EAX, i),
                         new AsmImmediate(value.charAt(i))))
             );
         }

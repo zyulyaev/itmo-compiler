@@ -1,6 +1,5 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 
-import org.jetbrains.annotations.NotNull;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
@@ -46,7 +45,6 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
         this.output = output;
     }
 
-    @NotNull
     private BcTranslator createChild() {
         return new BcTranslator(new BcContext(context), output);
     }

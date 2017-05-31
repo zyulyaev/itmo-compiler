@@ -19,10 +19,12 @@ import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.Interpreter;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.InterpreterRuntime;
 
 import java.io.BufferedWriter;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Scanner;
 
 /**
  * @author zyulyaev
@@ -37,19 +39,16 @@ public class CompilerRunner {
         this.runtime = runtime;
     }
 
-    public int run(FileSet fileSet) throws Exception {
+    public int run(FileSet fileSet, Scanner in, PrintWriter out) throws Exception {
         GrammarParser parser = new GrammarParser(new CommonTokenStream(new GrammarLexer(CharStreams.fromPath(fileSet.getInput()))));
         AsgProgram program = AsgBuilder.build(parser, Runtime.getExternalFunctions());
         switch (mode) {
             case INTERPRETER:
-                new Interpreter().interpret(program, new InterpreterRuntime().getFunctionDefinitions());
+                new Interpreter().interpret(program, new InterpreterRuntime(in, out).getFunctionDefinitions());
                 return 0;
             case STACK_MACHINE: {
                 BcProgram bcProgram = BcProgramTranslator.translate(program);
-//                PrintWriter out = new PrintWriter(System.out);
-//                new BcPrinter().print(bcProgram, out);
-//                out.flush();
-                new BcInterpreter(bcProgram, new BcRuntime().getFunctionDefinitions()).interpret();
+                new BcInterpreter(bcProgram, new BcRuntime(in, out).getFunctionDefinitions()).interpret();
                 return 0;
             }
             case COMPILER: {
@@ -88,7 +87,10 @@ public class CompilerRunner {
             runner = new CompilerRunner(Mode.COMPILER, runtime);
         }
         if (runner != null) {
-            System.exit(runner.run(FileSet.fromInput(args.files.get(0))));
+            try (Scanner in = new Scanner(System.in);
+                PrintWriter out = new PrintWriter(System.out)) {
+                System.exit(runner.run(FileSet.fromInput(args.files.get(0)), in, out));
+            }
         } else {
             jCommander.usage();
         }

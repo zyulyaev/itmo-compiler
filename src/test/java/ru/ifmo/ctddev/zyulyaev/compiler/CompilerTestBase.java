@@ -1,18 +1,20 @@
 package ru.ifmo.ctddev.zyulyaev.compiler;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runners.Parameterized.Parameter;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Scanner;
 import java.util.stream.StreamSupport;
 
 /**
@@ -34,20 +36,16 @@ public abstract class CompilerTestBase {
     @Parameter
     public TestFileSet set;
 
+    @Rule
+    public TemporaryFolder tmp = new TemporaryFolder(new File("target"));
+
     private void testInMode(CompilerRunner.Mode mode) throws Exception {
         CompilerRunner runner = new CompilerRunner(mode, "");
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        try (InputStream in = Files.newInputStream(set.getInput());
-             PrintStream out = new PrintStream(buffer))
+        try (Scanner in = new Scanner(Files.newBufferedReader(set.getInput()));
+             PrintWriter out = new PrintWriter(buffer))
         {
-            System.setIn(in);
-            System.setOut(out);
-
-            runner.run(new CompilerRunner.FileSet(
-                set.getCode(),
-                null,
-                null
-            ));
+            runner.run(new CompilerRunner.FileSet(set.getCode(),null,null), in, out);
         }
         byte[] ans = buffer.toByteArray();
         byte[] orig = Files.readAllBytes(set.getOrig());
@@ -67,24 +65,20 @@ public abstract class CompilerTestBase {
     @Test
     public void testCompiler() throws Exception {
         CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER, "runtime");
-        Path asm = Paths.get("target","test.s");
-        Path output = Paths.get("target","test");
-        Path log = Paths.get("target", "test.log");
-        try {
-            Assert.assertEquals("Compile " + set.getCode(), 0,
-                runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output)));
-            Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
-                .redirectInput(set.getInput().toFile())
-                .redirectOutput(log.toFile())
-                .start().waitFor());
 
-            byte[] ans = Files.readAllBytes(log);
-            byte[] orig = Files.readAllBytes(set.getOrig());
-            Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
-        } finally {
-            Files.deleteIfExists(asm);
-            Files.deleteIfExists(output);
-            Files.deleteIfExists(log);
-        }
+        Path asm = tmp.newFile(set.getName() + ".s").toPath();
+        Path output = tmp.newFile(set.getName()).toPath();
+        Path log = tmp.newFile(set.getName() + ".log").toPath();
+
+        Assert.assertEquals("Compile " + set.getCode(), 0,
+            runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output), null, null));
+        Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
+            .redirectInput(set.getInput().toFile())
+            .redirectOutput(log.toFile())
+            .start().waitFor());
+
+        byte[] ans = Files.readAllBytes(log);
+        byte[] orig = Files.readAllBytes(set.getOrig());
+        Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
     }
 }
