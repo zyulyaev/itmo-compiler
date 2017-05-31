@@ -1,5 +1,6 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asm;
 
+import org.apache.commons.lang3.SystemUtils;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmBinary;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmInstruction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmNullary;
@@ -49,19 +50,19 @@ public class AsmTranslator {
     private final Set<String> symbols = new HashSet<>();
     private final Map<BcFunction, AsmSymbol> symbolMap = new HashMap<>();
 
-    private final AsmSymbol malloc = reserve("_malloc");
-    private final AsmSymbol memcpy = reserve("_memcpy");
-    private final AsmSymbol arrget = reserve("_rc_arrget");
-    private final AsmSymbol arrinit = reserve("_rc_arrinit");
+    private final AsmSymbol malloc = reserveFunction("malloc");
+    private final AsmSymbol memcpy = reserveFunction("memcpy");
+    private final AsmSymbol arrget = reserveFunction("rc_arrget");
+    private final AsmSymbol arrinit = reserveFunction("rc_arrinit");
 
     private final AsmOutput output = new AsmOutput();
 
     public List<AsmLine> translate(BcProgram program) {
-        symbolMap.put(program.getMain().getFunction(), reserve("_main"));
+        symbolMap.put(program.getMain().getFunction(), reserveFunction("main"));
         program.getExternalFunctions().keySet()
-            .forEach(function -> symbolMap.put(function, reserve("_rc_" + function.getName())));
+            .forEach(function -> symbolMap.put(function, reserveFunction("rc_" + function.getName())));
         program.getFunctions().keySet()
-            .forEach(function -> symbolMap.put(function, reserve("_" + function.getName())));
+            .forEach(function -> symbolMap.put(function, reserveFunction(function.getName())));
 
         output.write(AsmSectionLine.TEXT);
         output.write(new AsmGlobl(symbolMap.get(program.getMain().getFunction())));
@@ -109,6 +110,14 @@ public class AsmTranslator {
             throw new IllegalStateException("Symbol already reserved: " + symbol);
         }
         return new AsmSymbol(symbol);
+    }
+
+    private AsmSymbol reserveFunction(String name) {
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return reserve("_" + name);
+        } else {
+            return reserve(name);
+        }
     }
 
     private class FunctionContext implements BcInstructionVisitor<Stream<AsmInstruction>>,
