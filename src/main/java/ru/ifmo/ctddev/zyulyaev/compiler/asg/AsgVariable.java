@@ -15,4 +15,5 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 public class AsgVariable {
     private final String name;
     private final AsgType type;
+    private final boolean readOnly;
 }

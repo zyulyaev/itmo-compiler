@@ -1,8 +1,11 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asg.build;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgClassType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +29,16 @@ class Context {
         return environment.getFunction(name, argumentTypes);
     }
 
+    AsgMethod resolveMethod(AsgType type, String name) {
+        if (type instanceof AsgClassType) {
+            return ((AsgClassType) type).getMethod(name);
+        } else if (type instanceof AsgDataType) {
+            return ((AsgDataType) type).getMethod(name);
+        } else {
+            return null;
+        }
+    }
+
     AsgVariable resolveVariable(String name) {
         if (variablesMap.containsKey(name)) {
             return variablesMap.get(name);
@@ -34,24 +47,28 @@ class Context {
         }
     }
 
-    AsgVariable resolveOrDeclareVariable(String name, AsgType type) {
+    AsgVariable resolveOrDeclareVariable(String name, AsgType type, boolean readOnly) {
         AsgVariable variable = resolveVariable(name);
         if (variable == null) {
-            variable = new AsgVariable(name, type);
-            variablesMap.put(name, variable);
-        } else if (!variable.getType().equals(type)) {
+            variable = declareVariable(name, type, readOnly);
+        } else if (!variable.getType().equals(type) || readOnly != variable.isReadOnly()) {
             throw new IllegalArgumentException("Types don't match: " + name);
         }
         return variable;
     }
 
-    void declareVariable(AsgVariable variable) {
-        if (variablesMap.containsKey(variable.getName())) {
-            throw new IllegalStateException("Variable already defined: " + variable);
+    AsgVariable declareVariable(String name, AsgType type, boolean readOnly) {
+        if (variablesMap.containsKey(name)) {
+            throw new IllegalStateException("Variable already defined: " + name);
         }
-        variablesMap.put(variable.getName(), variable);
+        AsgVariable variable = new AsgVariable(name, type, readOnly);
+        variablesMap.put(name, variable);
+        return variable;
     }
 
+    AsgType resolveType(String name) {
+        return environment.getType(name);
+    }
 
     StatementParser asStatementParser() {
         return new StatementParser(this);

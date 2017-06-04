@@ -16,7 +16,22 @@ public class AsgMethodCallExpression implements AsgExpression {
     private final AsgMethod method;
     private final List<AsgExpression> arguments;
 
-    // todo check that object belongs to method's class
+    public AsgMethodCallExpression(AsgExpression object, AsgMethod method, List<AsgExpression> arguments) {
+        if (!method.getParent().isAssignableFrom(object.getResultType())) {
+            throw new IllegalArgumentException(object.getResultType() + " does not implement " + method.getParent());
+        }
+        if (method.getParameterTypes().size() != arguments.size()) {
+            throw new IllegalArgumentException("Arguments and parameters count does not match");
+        }
+        for (int i = 0; i < arguments.size(); i++) {
+            if (!method.getParameterTypes().get(i).isAssignableFrom(arguments.get(i).getResultType())) {
+                throw new IllegalArgumentException("Method parameter types don't match");
+            }
+        }
+        this.object = object;
+        this.method = method;
+        this.arguments = arguments;
+    }
 
     @Override
     public AsgType getResultType() {

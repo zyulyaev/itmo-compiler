@@ -3,6 +3,7 @@ package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgCastExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgDataExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpressionVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
@@ -251,6 +252,11 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
 
     @Override
     public Void visit(AsgCastExpression castExpression) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Void visit(AsgDataExpression dataExpression) {
         throw new UnsupportedOperationException();
     }
 

@@ -16,11 +16,11 @@ public class AsgFunctionCallExpression implements AsgExpression {
     private final List<AsgExpression> arguments;
 
     public AsgFunctionCallExpression(AsgFunction function, List<AsgExpression> arguments) {
-        if (function.getParameters().size() != arguments.size()) {
+        if (function.getParameterTypes().size() != arguments.size()) {
             throw new IllegalArgumentException("Arguments and parameters count does not match");
         }
         for (int i = 0; i < arguments.size(); i++) {
-            if (!function.getParameters().get(i).getType().isAssignableFrom(arguments.get(i).getResultType())) {
+            if (!function.getParameterTypes().get(i).isAssignableFrom(arguments.get(i).getResultType())) {
                 throw new IllegalArgumentException("Function parameter types don't match");
             }
         }

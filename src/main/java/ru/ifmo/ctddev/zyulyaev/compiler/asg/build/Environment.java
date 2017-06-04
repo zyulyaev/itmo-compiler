@@ -3,7 +3,7 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.build;
 import lombok.Data;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgClassType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgPredefinedType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
@@ -44,6 +44,10 @@ class Environment {
         types.put(type.getName(), type);
     }
 
+    void defineType(AsgClassType type) {
+        types.put(type.getName(), type);
+    }
+
     void declareFunction(AsgFunction function) {
         functions.put(function.getName(), function);
     }
@@ -55,21 +59,19 @@ class Environment {
                 new ExternalFunctionCallSignature(externalFunction, argumentTypes),
                 sign -> new AsgFunction(
                     sign.function.getName(),
-                    sign.argumentTypes.stream()
-                        .map(type -> new AsgVariable(null, type))
-                        .collect(Collectors.toList()),
+                    sign.argumentTypes,
                     sign.function.resolveReturnType(sign.argumentTypes)
                 ));
         } else {
             AsgFunction function = functions.get(name);
-            if (function.getParameters().size() != argumentTypes.size()) {
-                throw new IllegalArgumentException("Expected " + function.getParameters() + " arguments but got: " +
+            if (function.getParameterTypes().size() != argumentTypes.size()) {
+                throw new IllegalArgumentException("Expected " + function.getParameterTypes() + " arguments but got: " +
                     argumentTypes.size());
             }
-            for (int i = 0; i < function.getParameters().size(); i++) {
-                AsgType parameterType = function.getParameters().get(i).getType();
+            for (int i = 0; i < function.getParameterTypes().size(); i++) {
+                AsgType parameterType = function.getParameterTypes().get(i);
                 AsgType argumentType = argumentTypes.get(i);
-                if (!parameterType.equals(argumentType)) {
+                if (!parameterType.isAssignableFrom(argumentType)) {
                     throw new IllegalArgumentException("Expected " + parameterType + " but got: " + argumentType);
                 }
             }

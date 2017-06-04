@@ -31,4 +31,9 @@ public enum AsgPredefinedType implements AsgType {
     public boolean isAssignableFrom(AsgType type) {
         return type == this || (this == ANY || type == NONE) && !this.isPrimitive();
     }
+
+    @Override
+    public String toString() {
+        return name;
+    }
 }

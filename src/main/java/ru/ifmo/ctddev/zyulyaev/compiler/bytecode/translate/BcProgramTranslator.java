@@ -36,16 +36,16 @@ public class BcProgramTranslator {
             AsgFunction asgFunction = entry.getKey();
             BcFunction bcFunction = new BcFunction(
                 asgFunction.getName(),
-                asgFunction.getParameters().stream()
-                    .map(param -> new BcVariable(param.getName()))
+                asgFunction.getParameterTypes().stream()
+                    .map(param -> new BcVariable(null)) // todo
                     .collect(Collectors.toList())
             );
             externalFunctions.put(bcFunction, entry.getValue());
             functionMap.put(asgFunction, bcFunction);
         }
         for (AsgFunctionDefinition definition : program.getFunctionDefinitions()) {
-            List<BcVariable> parameters = definition.getFunction().getParameters().stream()
-                .map(var -> new BcVariable(var.getName()))
+            List<BcVariable> parameters = definition.getFunction().getParameterTypes().stream()
+                .map(var -> new BcVariable(null)) // todo
                 .collect(Collectors.toList());
             BcFunction function = new BcFunction(definition.getFunction().getName(), parameters);
             functionMap.put(definition.getFunction(), function);
@@ -70,9 +70,9 @@ public class BcProgramTranslator {
     private BcFunctionDefinition translate(AsgFunctionDefinition definition) {
         AsgFunction asgFunction = definition.getFunction();
         BcFunction bcFunction = functionMap.get(asgFunction);
-        Map<AsgVariable, BcVariable> parameters = IntStream.range(0, asgFunction.getParameters().size()).boxed()
+        Map<AsgVariable, BcVariable> parameters = IntStream.range(0, asgFunction.getParameterTypes().size()).boxed()
             .collect(Collectors.toMap(
-                i -> asgFunction.getParameters().get(i),
+                i -> definition.getParameters().get(i),
                 i -> bcFunction.getParameters().get(i)
             ));
          return translate(bcFunction, parameters, definition.getBody());

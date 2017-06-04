@@ -33,7 +33,7 @@ class StatementParser extends GrammarBaseVisitor<AsgStatement> {
     public AsgStatement visitVariableAssignment(GrammarParser.VariableAssignmentContext ctx) {
         String name = ctx.variable.getText();
         AsgExpression expression = ctx.value.accept(context.asExpressionParser());
-        AsgVariable variable = context.resolveOrDeclareVariable(name, expression.getResultType());
+        AsgVariable variable = context.resolveOrDeclareVariable(name, expression.getResultType(), false);
         return new AsgVariableAssignment(variable, expression);
     }
 

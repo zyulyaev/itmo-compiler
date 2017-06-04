@@ -8,7 +8,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
  */
 public class Interpreter {
     public void interpret(AsgProgram program, InterpreterRuntime runtime) {
-        FunctionTable table = new FunctionTable(program.getFunctionDefinitions(),
+        FunctionTable table = new FunctionTable(program.getFunctionDefinitions(), program.getImplDefinitions(),
             program.getExternalFunctions(), runtime.getFunctionDefinitions());
         InterpreterContext rootContext = new InterpreterContext(table, null);
         StatementInterpreter interpreter = rootContext.asStatementInterpreter();

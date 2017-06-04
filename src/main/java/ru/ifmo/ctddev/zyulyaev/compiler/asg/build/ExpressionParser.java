@@ -5,14 +5,18 @@ import ru.ifmo.ctddev.zyulyaev.GrammarBaseVisitor;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgBinaryOperator;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgCastExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgDataExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgIndexExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgMemberAccessExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgMethodCallExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgVariableExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
 import java.util.List;
@@ -99,12 +103,30 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
             .collect(Collectors.toList());
         List<AsgType> argumentTypes = arguments.stream().map(AsgExpression::getResultType).collect(Collectors.toList());
         AsgFunction function = context.resolveFunction(ctx.name.getText(), argumentTypes);
+        castArguments(arguments, function.getParameterTypes());
         return new AsgFunctionCallExpression(function, arguments);
     }
 
     @Override
     public AsgExpression visitMethodCallTerm(GrammarParser.MethodCallTermContext ctx) {
-        throw new UnsupportedOperationException();
+        AsgExpression object = ctx.object.accept(this);
+        AsgType objectType = object.getResultType();
+        String methodName = ctx.method.getText();
+        AsgMethod method = context.resolveMethod(objectType, methodName);
+        List<AsgExpression> arguments = ctx.args.argument().stream()
+            .map(arg -> arg.accept(this))
+            .collect(Collectors.toList());
+        castArguments(arguments, method.getParameterTypes());
+        return new AsgMethodCallExpression(object, method, arguments);
+    }
+
+    private void castArguments(List<AsgExpression> arguments, List<AsgType> parameterTypes) {
+        for (int i = 0; i < arguments.size(); i++) {
+            AsgType parameterType = parameterTypes.get(i);
+            if (!arguments.get(i).getResultType().equals(parameterType)) {
+                arguments.set(i, new AsgCastExpression(arguments.get(i), parameterType, false));
+            }
+        }
     }
 
     @Override
@@ -130,5 +152,16 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
         AsgExpression expression = ctx.expression().accept(this);
         AsgType target = ctx.type().accept(context.asTypeParser());
         return new AsgCastExpression(expression, target, true);
+    }
+
+    @Override
+    public AsgExpression visitDataExpr(GrammarParser.DataExprContext ctx) {
+        AsgDataType dataType = (AsgDataType) context.resolveType(ctx.dataExpression().dataType.getText());
+        Map<AsgDataType.Field, AsgExpression> values = ctx.dataExpression().fieldExpression().stream()
+            .collect(Collectors.toMap(
+                field -> dataType.getField(field.name.getText()),
+                field -> field.value.accept(this)
+            ));
+        return new AsgDataExpression(dataType, values);
     }
 }

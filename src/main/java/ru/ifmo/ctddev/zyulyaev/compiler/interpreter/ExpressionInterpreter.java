@@ -4,6 +4,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgCastExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgDataExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpressionVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgIndexExpression;
@@ -23,6 +24,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.StringValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.Value;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -39,9 +41,12 @@ class ExpressionInterpreter implements AsgExpressionVisitor<Value> {
     @Override
     public Value visit(AsgLiteralExpression<?> literal) {
         switch (literal.getType()) {
-        case INT: return new IntValue((Integer) literal.getValue());
-        case STRING: return new StringValue(((String) literal.getValue()).toCharArray());
-        case NONE: return NoneValue.INSTANCE;
+        case INT:
+            return new IntValue((Integer) literal.getValue());
+        case STRING:
+            return new StringValue(((String) literal.getValue()).toCharArray());
+        case NONE:
+            return NoneValue.INSTANCE;
         }
         throw new IllegalArgumentException("Unexpected literal type: " + literal.getType());
     }
@@ -64,9 +69,11 @@ class ExpressionInterpreter implements AsgExpressionVisitor<Value> {
 
     @Override
     public Value visit(AsgMethodCallExpression methodCall) {
-        Value object = methodCall.getObject().accept(this);
-        // todo
-        throw new UnsupportedOperationException();
+        DataTypeValue object = methodCall.getObject().accept(this).asRightValue().asDataType();
+        List<RightValue> arguments = methodCall.getArguments().stream()
+            .map(arg -> arg.accept(this).asRightValue())
+            .collect(Collectors.toList());
+        return context.callMethod(object, methodCall.getMethod(), arguments);
     }
 
     @Override
@@ -99,5 +106,15 @@ class ExpressionInterpreter implements AsgExpressionVisitor<Value> {
     @Override
     public Value visit(AsgCastExpression castExpression) {
         return castExpression.getExpression().accept(this);
+    }
+
+    @Override
+    public Value visit(AsgDataExpression dataExpression) {
+        Map<AsgDataType.Field, RightValue> values = dataExpression.getValues().entrySet().stream()
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                entry -> entry.getValue().accept(this).asRightValue()
+            ));
+        return new DataTypeValue(dataExpression.getType(), values);
     }
 }

@@ -2,22 +2,23 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.build;
 
 import ru.ifmo.ctddev.zyulyaev.GrammarBaseVisitor;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgArrayType;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunctionDefinition;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgImplDefinition;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethodDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgClassType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 /**
@@ -71,75 +72,80 @@ public class AsgBuilder {
             }
         });
 
-        List<AsgDataType> dataTypes = parseDataDefinitions(dataDefinitions);
+        List<AsgDataType> definedTypes =
+            dataDefinitions.stream().map(this::parseDataDeclaration).collect(Collectors.toList());
+        List<AsgClassType> definedClasses =
+            classDefinitions.stream().map(this::parseClassDeclaration).collect(Collectors.toList());
+
+        dataDefinitions.forEach(this::parseDataDefinition);
+        classDefinitions.forEach(this::parseClassDefinition);
+
         functionDefinitions.forEach(this::parseFunctionDeclaration);
         List<AsgFunctionDefinition> definedFunctions =
             functionDefinitions.stream().map(this::parseFunctionDefinition).collect(Collectors.toList());
+
+        List<AsgImplDefinition> definedImplementations =
+            implDefinitions.stream().map(this::parseImplementation).collect(Collectors.toList());
+
+        definedTypes.forEach(type -> type.setImplementedClasses(new ArrayList<>()));
+        for (AsgImplDefinition impl : definedImplementations) {
+            impl.getDataType().getImplementedClasses().add(impl.getClassType());
+        }
 
         Context mainContext = new Context(environment, null);
         AsgStatement mainBody = program.statements().accept(mainContext.asStatementParser());
 
         return new AsgProgram(
             definedFunctions,
-            dataTypes,
-            Collections.emptyList(),
-            Collections.emptyList(),
+            definedTypes,
+            definedClasses,
+            definedImplementations,
             environment.getExternalFunctions(),
             mainBody
         );
     }
 
-    private List<AsgDataType> parseDataDefinitions(List<GrammarParser.DataDefinitionContext> ctxs) {
-        List<AsgDataType> result = new ArrayList<>();
+    private AsgDataType parseDataDeclaration(GrammarParser.DataDefinitionContext ctx) {
+        AsgDataType type = new AsgDataType(ctx.name.getText());
+        environment.defineType(type);
+        return type;
+    }
 
-        Map<String, GrammarParser.DataDefinitionContext> dataTypeByName =
-            ctxs.stream().collect(Collectors.toMap(ctx -> ctx.name.getText(), Function.identity()));
+    private void parseDataDefinition(GrammarParser.DataDefinitionContext ctx) {
+        AsgDataType type = (AsgDataType) environment.getType(ctx.name.getText());
+        type.setFields(ctx.fields().field().stream()
+            .map(field -> new AsgDataType.Field(field.name.getText(), field.accept(environment.asTypeParser())))
+            .collect(Collectors.toList()));
+    }
 
-        DataTypeDependencyGraph graph = DataTypeDependencyGraphBuilder.build(ctxs);
-        graph.findCycle()
-            .ifPresent(cycle -> {
-                throw new IllegalStateException("Data cycle detected: " +
-                    cycle.stream().collect(Collectors.joining(" -> ")));
-            });
+    private AsgClassType parseClassDeclaration(GrammarParser.ClassDefinitionContext ctx) {
+        AsgClassType type = new AsgClassType(ctx.name.getText());
+        environment.defineType(type);
+        return type;
+    }
 
-        for (String typeName : graph.topologySort()) {
-            if (environment.containsType(typeName)) {
-                continue;
-            }
-            GrammarParser.DataDefinitionContext definition = dataTypeByName.get(typeName);
-            if (definition == null) {
-                throw new IllegalArgumentException("Undefined type: " + typeName);
-            }
-            AsgDataType type = new AsgDataType(
-                definition.name.getText(),
-                definition.fields().field().stream()
-                    .map(field -> new AsgDataType.Field(field.name.getText(),
-                        field.type().accept(new GrammarBaseVisitor<AsgType>() {
-                            @Override
-                            public AsgType visitPlainType(GrammarParser.PlainTypeContext ctx) {
-                                return environment.getType(ctx.id().getText());
-                            }
-
-                            @Override
-                            public AsgType visitArrayType(GrammarParser.ArrayTypeContext ctx) {
-                                return new AsgArrayType(ctx.type().accept(this));
-                            }
-                        })))
-                    .collect(Collectors.toList())
-            );
-            environment.defineType(type);
-            result.add(type);
-        }
-        return result;
+    private void parseClassDefinition(GrammarParser.ClassDefinitionContext ctx) {
+        AsgClassType type = (AsgClassType) environment.getType(ctx.name.getText());
+        List<AsgMethod> methods = ctx.methodDecl().stream()
+            .map(method -> new AsgMethod(
+                type,
+                method.name.getText(),
+                method.parameters().parameter().stream()
+                    .map(param -> param.type().accept(environment.asTypeParser()))
+                    .collect(Collectors.toList()),
+                method.returnType.accept(environment.asTypeParser())
+            ))
+            .collect(Collectors.toList());
+        type.setMethods(methods);
     }
 
     private void parseFunctionDeclaration(GrammarParser.FunctionDefinitionContext ctx) {
         String name = ctx.name.getText();
-        List<AsgVariable> parameters = ctx.parameters().parameter().stream()
-            .map(param -> new AsgVariable(param.id().getText(), param.type().accept(environment.asTypeParser())))
+        List<AsgType> parameterTypes = ctx.parameters().parameter().stream()
+            .map(param -> param.type().accept(environment.asTypeParser()))
             .collect(Collectors.toList());
         AsgType returnType = ctx.returnType.accept(environment.asTypeParser());
-        AsgFunction function = new AsgFunction(name, parameters, returnType);
+        AsgFunction function = new AsgFunction(name, parameterTypes, returnType);
         environment.declareFunction(function);
     }
 
@@ -150,8 +156,41 @@ public class AsgBuilder {
             .collect(Collectors.toList());
         AsgFunction declaration = environment.getFunction(name, parameterTypes);
         Context functionContext = new Context(environment, null);
-        declaration.getParameters().forEach(functionContext::declareVariable);
+        List<AsgVariable> parameters = ctx.parameters().parameter().stream()
+            .map(param -> functionContext.declareVariable(
+                param.id().getText(),
+                param.type().accept(environment.asTypeParser()),
+                false
+            ))
+            .collect(Collectors.toList());
         AsgStatement body = ctx.body.accept(functionContext.asStatementParser());
-        return new AsgFunctionDefinition(declaration, body);
+        return new AsgFunctionDefinition(declaration, parameters, body);
+    }
+
+    private AsgImplDefinition parseImplementation(GrammarParser.ImplDefinitionContext ctx) {
+        AsgClassType classType = (AsgClassType) environment.getType(ctx.className.getText());
+        AsgDataType dataType = (AsgDataType) environment.getType(ctx.dataType.getText());
+        List<AsgMethodDefinition> definitions = ctx.functionDefinition().stream()
+            .map(def -> parseMethodDefinition(def, dataType, classType))
+            .collect(Collectors.toList());
+        return new AsgImplDefinition(classType, dataType, definitions);
+    }
+
+    private AsgMethodDefinition parseMethodDefinition(GrammarParser.FunctionDefinitionContext ctx, AsgDataType dataType,
+        AsgClassType classType)
+    {
+        AsgMethod method = classType.getMethods().stream().filter(m -> m.getName().equals(ctx.name.getText()))
+            .findFirst().orElseThrow(() -> new NoSuchElementException("Method " + ctx.name.getText() + " not found"));
+        Context methodContext = new Context(environment, null);
+        AsgVariable thisValue = methodContext.declareVariable("this", dataType, true);
+        List<AsgVariable> parameters = ctx.parameters().parameter().stream()
+            .map(param -> methodContext.declareVariable(
+                param.id().getText(),
+                param.type().accept(environment.asTypeParser()),
+                false)
+            )
+            .collect(Collectors.toList());
+        AsgStatement body = ctx.body.accept(methodContext.asStatementParser());
+        return new AsgMethodDefinition(method, thisValue, parameters, body);
     }
 }

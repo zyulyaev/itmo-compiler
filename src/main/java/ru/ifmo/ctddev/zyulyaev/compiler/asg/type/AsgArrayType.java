@@ -20,4 +20,9 @@ public class AsgArrayType implements AsgType {
         return type == AsgPredefinedType.NONE
             || type instanceof AsgArrayType && compound.isAssignableFrom(((AsgArrayType) type).compound);
     }
+
+    @Override
+    public String toString() {
+        return "[" + compound + "]";
+    }
 }

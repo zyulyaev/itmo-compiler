@@ -1,7 +1,9 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.interpreter;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.DataTypeValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.LeftValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.RightValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.VarValue;
@@ -64,5 +66,9 @@ class InterpreterContext {
 
     RightValue callFunction(AsgFunction function, List<RightValue> arguments) {
         return table.callFunction(function, arguments);
+    }
+
+    RightValue callMethod(DataTypeValue object, AsgMethod method, List<RightValue> arguments) {
+        return table.callMethod(object, method, arguments);
     }
 }

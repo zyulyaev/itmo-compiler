@@ -85,6 +85,7 @@ expression
     | left=expression op=('&&'|'||') right=expression                       # binExpr
     | left=expression op='!!' right=expression                              # binExpr
     | '[' arguments ']'                                                     # arrayExpr
+    | dataExpression                                                        # dataExpr
     | expression 'as' type                                                  # castExpr
     | leftValue                                                             # leftValueExpr
     | term                                                                  # termExpr
@@ -104,6 +105,10 @@ term
     | literal                                                               # literalTerm
     | id                                                                    # idTerm
     ;
+
+dataExpression: dataType=id '{' fieldExpression (',' fieldExpression)* '}';
+
+fieldExpression: name=id ':' value=expression;
 
 arguments
     : argument (',' argument)*

@@ -22,4 +22,6 @@ public interface AsgExpressionVisitor<T> {
     T visit(AsgVariableExpression variableExpression);
 
     T visit(AsgCastExpression castExpression);
+
+    T visit(AsgDataExpression dataExpression);
 }

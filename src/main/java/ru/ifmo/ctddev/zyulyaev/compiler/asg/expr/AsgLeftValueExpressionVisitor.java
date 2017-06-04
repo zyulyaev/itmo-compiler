@@ -29,4 +29,14 @@ public interface AsgLeftValueExpressionVisitor<T> extends AsgExpressionVisitor<T
     default T visit(AsgArrayExpression arrayExpression) {
         throw new IllegalStateException();
     }
+
+    @Override
+    default T visit(AsgCastExpression castExpression) {
+        throw new IllegalStateException();
+    }
+
+    @Override
+    default T visit(AsgDataExpression dataExpression) {
+        throw new IllegalStateException();
+    }
 }
