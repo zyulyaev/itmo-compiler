@@ -1,7 +1,7 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;

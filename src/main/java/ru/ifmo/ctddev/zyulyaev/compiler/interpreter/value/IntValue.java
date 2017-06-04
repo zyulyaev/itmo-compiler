@@ -7,15 +7,6 @@ import lombok.Data;
  * @since 27.05.2017
  */
 @Data
-public class IntValue implements Value {
+public class IntValue implements RightValue {
     private final int value;
-
-    public IntValue(int value) {
-        this.value = value;
-    }
-
-    @Override
-    public ValueType getType() {
-        return ValueType.INT;
-    }
 }

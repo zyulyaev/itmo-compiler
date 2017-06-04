@@ -2,20 +2,25 @@ package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgCastExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpressionVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgIndexExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLiteralExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgMemberAccessExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgMethodCallExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgVariableExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgAssignment;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgExpressionStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgForStatement;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgFunctionCallStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgIfStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgRepeatStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgReturnStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementList;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementVisitor;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgVariableAssignment;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgWhileStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcArrayInit;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcBinOp;
@@ -64,9 +69,19 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
     // STATEMENTS
     @Override
     public Void visit(AsgAssignment assignment) {
-        translateLeftValue(assignment.getLeftValue());
+        translateNested(assignment.getLeftValue());
         try (BcTranslator child = createChild()) {
             assignment.getExpression().accept(child);
+            output.write(BcNullaryInstructions.STORE);
+        }
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgVariableAssignment assignment) {
+        output.write(new BcPushAddress(context.getVariable(assignment.getVariable())));
+        try (BcTranslator child = createChild()) {
+            assignment.getValue().accept(child);
             output.write(BcNullaryInstructions.STORE);
         }
         return null;
@@ -141,8 +156,8 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
     }
 
     @Override
-    public Void visit(AsgFunctionCallStatement functionCallStatement) {
-        translateNested(functionCallStatement.getExpression());
+    public Void visit(AsgExpressionStatement expressionStatement) {
+        translateNested(expressionStatement.getExpression());
         output.write(BcNullaryInstructions.POP);
         return null;
     }
@@ -162,7 +177,7 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
         case INT:
             output.write(new BcPush((Integer) literal.getValue()));
             return null;
-        case NULL:
+        case NONE:
             output.write(new BcPush(0));
             return null;
         case STRING:
@@ -173,13 +188,6 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
             return null;
         }
         throw new UnsupportedOperationException("Literal type not supported: " + literal.getType());
-    }
-
-    @Override
-    public Void visit(AsgLeftValueExpression leftValue) {
-        translateLeftValue(leftValue);
-        output.write(BcNullaryInstructions.LOAD);
-        return null;
     }
 
     @Override
@@ -202,6 +210,12 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
     }
 
     @Override
+    public Void visit(AsgMethodCallExpression methodCall) {
+        // todo
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Void visit(AsgArrayExpression arrayExpression) {
         List<AsgExpression> values = arrayExpression.getValues();
         for (int i = values.size() - 1; i >= 0; i--) {
@@ -214,14 +228,30 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
         return null;
     }
 
-    private void translateLeftValue(AsgLeftValueExpression leftValue) {
-        BcVariable variable = context.getVariable(leftValue.getVariable());
+    @Override
+    public Void visit(AsgIndexExpression indexExpression) {
+        indexExpression.getArray().accept(this);
+        indexExpression.getIndex().accept(this);
+        output.write(BcNullaryInstructions.LOAD);
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgMemberAccessExpression memberAccessExpression) {
+        // todo
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Void visit(AsgVariableExpression variableExpression) {
+        BcVariable variable = context.getVariable(variableExpression.getVariable());
         output.write(new BcPushAddress(variable));
-        for (AsgExpression index : leftValue.getIndexes()) {
-            output.write(BcNullaryInstructions.LOAD);
-            translateNested(index);
-            output.write(BcNullaryInstructions.INDEX);
-        }
+        return null;
+    }
+
+    @Override
+    public Void visit(AsgCastExpression castExpression) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

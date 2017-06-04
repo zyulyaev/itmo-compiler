@@ -2,33 +2,42 @@ package ru.ifmo.ctddev.zyulyaev.compiler.interpreter;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgAssignment;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgExpressionStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgForStatement;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgFunctionCallStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgIfStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgRepeatStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgReturnStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementList;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementVisitor;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgVariableAssignment;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgWhileStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.IntValue;
+import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.LeftValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.Value;
 
 /**
  * @author zyulyaev
  * @since 27.05.2017
  */
-public class StatementInterpreter implements AsgStatementVisitor<Value> {
+class StatementInterpreter implements AsgStatementVisitor<Value> {
     private final InterpreterContext context;
 
-    public StatementInterpreter(InterpreterContext context) {
+    StatementInterpreter(InterpreterContext context) {
         this.context = context;
     }
 
     @Override
     public Value visit(AsgAssignment assignment) {
-        context.assignValue(context.asExpressionInterpreter().interpretLeftValue(assignment.getLeftValue()),
-            assignment.getExpression().accept(context.asExpressionInterpreter()));
+        LeftValue leftValue = assignment.getLeftValue().accept(context.asExpressionInterpreter()).asLeftValue();
+        leftValue.set(assignment.getExpression().accept(context.asExpressionInterpreter()).asRightValue());
+        return null;
+    }
+
+    @Override
+    public Value visit(AsgVariableAssignment assignment) {
+        context.getOrDefineValue(assignment.getVariable())
+            .set(assignment.getValue().accept(context.asExpressionInterpreter()).asRightValue());
         return null;
     }
 
@@ -93,8 +102,8 @@ public class StatementInterpreter implements AsgStatementVisitor<Value> {
     }
 
     @Override
-    public Value visit(AsgFunctionCallStatement functionCallStatement) {
-        functionCallStatement.getExpression().accept(context.asExpressionInterpreter());
+    public Value visit(AsgExpressionStatement expressionStatement) {
+        expressionStatement.getExpression().accept(context.asExpressionInterpreter());
         return null;
     }
 
@@ -108,7 +117,7 @@ public class StatementInterpreter implements AsgStatementVisitor<Value> {
     }
 
     private boolean interpretCondition(AsgExpression expression) {
-        IntValue value = (IntValue) expression.accept(context.asExpressionInterpreter());
+        IntValue value = expression.accept(context.asExpressionInterpreter()).asRightValue().asInt();
         return value.getValue() != 0;
     }
 }

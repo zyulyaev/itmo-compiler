@@ -2,8 +2,8 @@ package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunctionDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcNullaryInstructions;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPush;
@@ -12,7 +12,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,21 +26,21 @@ import java.util.stream.IntStream;
  * @since 28.05.2017
  */
 public class BcProgramTranslator {
-    private final Map<BcFunction, ExternalFunction> externalFunctions = new HashMap<>();
+    private final Map<BcFunction, AsgExternalFunction> externalFunctions = new HashMap<>();
     private final Map<AsgFunction, BcFunction> functionMap = new HashMap<>();
     private final AsgProgram program;
 
     private BcProgramTranslator(AsgProgram program) {
         this.program = program;
-        for (Map.Entry<ExternalFunction, AsgFunction> entry : program.getExternalDefinitions().entrySet()) {
-            AsgFunction asgFunction = entry.getValue();
+        for (Map.Entry<AsgFunction, AsgExternalFunction> entry : program.getExternalFunctions().entrySet()) {
+            AsgFunction asgFunction = entry.getKey();
             BcFunction bcFunction = new BcFunction(
                 asgFunction.getName(),
                 asgFunction.getParameters().stream()
                     .map(param -> new BcVariable(param.getName()))
                     .collect(Collectors.toList())
             );
-            externalFunctions.put(bcFunction, entry.getKey());
+            externalFunctions.put(bcFunction, entry.getValue());
             functionMap.put(asgFunction, bcFunction);
         }
         for (AsgFunctionDefinition definition : program.getFunctionDefinitions()) {

@@ -3,14 +3,14 @@ package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcScalar;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValueType;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.BinaryOperator;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgBinaryOperator;
 
 /**
  * @author zyulyaev
  * @since 29.05.2017
  */
 class Operators {
-    static BcValue apply(BcValue left, BcValue right, BinaryOperator operator) {
+    static BcValue apply(BcValue left, BcValue right, AsgBinaryOperator operator) {
         BcValueType leftType = left.getType();
         BcValueType rightType = right.getType();
         if (leftType == BcValueType.SCALAR && rightType == BcValueType.SCALAR) {
@@ -20,7 +20,7 @@ class Operators {
         }
     }
 
-    private static BcValue applyScalar(BcScalar left, BcScalar right, BinaryOperator operator) {
+    private static BcValue applyScalar(BcScalar left, BcScalar right, AsgBinaryOperator operator) {
         int lValue = left.getValue();
         int rValue = right.getValue();
         switch (operator) {

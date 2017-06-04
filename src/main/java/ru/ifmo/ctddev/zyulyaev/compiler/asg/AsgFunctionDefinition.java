@@ -1,7 +1,6 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asg;
 
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 
 /**

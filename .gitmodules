@@ -1,3 +1,4 @@
 [submodule "tests"]
 	path = tests
 	url = https://github.com/zyulyaev/compiler-tests.git
+    branch = typed

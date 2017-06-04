@@ -6,7 +6,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcPointer;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcScalar;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValue;
 
-import java.io.PrintWriter;
+import java.io.PrintStream;
 import java.util.List;
 import java.util.Scanner;
 import java.util.stream.Stream;
@@ -17,9 +17,9 @@ import java.util.stream.Stream;
  */
 public class BcRuntime extends Runtime<List<BcValue>, BcValue> {
     private final Scanner in;
-    private final PrintWriter out;
+    private final PrintStream out;
 
-    public BcRuntime(Scanner in, PrintWriter out) {
+    public BcRuntime(Scanner in, PrintStream out) {
         this.in = in;
         this.out = out;
     }

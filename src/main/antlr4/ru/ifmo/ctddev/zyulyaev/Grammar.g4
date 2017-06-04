@@ -2,21 +2,47 @@ grammar Grammar;
 
 program: definitions statements;
 
-definitions: functionDefinition*;
+definitions: topLevelDefinition*;
 
-functionDefinition: 'fun' name=id '(' parameters ')' 'begin' body=statements 'end';
+topLevelDefinition
+    : functionDefinition
+    | dataDefinition
+    | classDefinition
+    | implDefinition
+    ;
+
+functionDefinition: 'fun' name=id '(' parameters ')' ':' returnType=type 'begin' body=statements 'end';
 
 parameters
     : parameter (',' parameter)*
     | // empty parameters
     ;
 
-parameter: id;
+parameter: id ':' type;
+
+dataDefinition: 'data' name=id '{' fields '}';
+
+fields
+    : field (',' field)*
+    | // no fields
+    ;
+field: name=id ':' type;
+
+classDefinition: 'class' name=id '{' methodDecl* '}';
+
+methodDecl: 'fun' name=id '(' parameters ')' ':' returnType=type;
+
+implDefinition: 'impl' className=id 'for' dataType=type '{' functionDefinition* '}';
+
+type
+    : id            # plainType
+    | '[' type ']'  # arrayType
+    ;
 
 statements: statement (';' statement)*;
 
 statement
-    : functionCall
+    : expressionStatement
     | assignment
     | ifStatement
     | forStatement
@@ -27,16 +53,12 @@ statement
     | // empty statement
     ;
 
-functionCall: name=id '(' args=arguments ')';
+expressionStatement: expression;
 
-arguments
-    : argument (',' argument)*
-    | // empty arguments
+assignment
+    : variable=id ':=' value=expression     # variableAssignment
+    | leftValue ':=' value=expression       # leftValueAssignment
     ;
-
-argument: expression;
-
-assignment: variable=leftValue ':=' value=expression;
 
 ifStatement: 'if' condition=expression 'then' positive=statements negative=elseBlock? 'fi';
 elseBlock
@@ -44,7 +66,7 @@ elseBlock
     | 'elif' condition=expression 'then' positive=statements negative=elseBlock?    # elif
     ;
 
-forStatement: 'for' init=forInitialization ',' term=expression ',' inc=forIncrement 'do' body=statements 'od';
+forStatement: 'for' initializaion=forInitialization ',' termination=expression ',' increment=forIncrement 'do' body=statements 'od';
 forInitialization: assignment | skipStatement;
 forIncrement: assignment | skipStatement;
 
@@ -62,14 +84,33 @@ expression
     | left=expression op=('<'|'>'|'>='|'<='|'=='|'!=') right=expression     # binExpr
     | left=expression op=('&&'|'||') right=expression                       # binExpr
     | left=expression op='!!' right=expression                              # binExpr
-    | '(' expression ')'                                                    # parensExpr
-    | functionCall                                                          # functionExpr
-    | leftValue                                                             # leftValueExpr
-    | literal                                                               # literalExpr
     | '[' arguments ']'                                                     # arrayExpr
+    | expression 'as' type                                                  # castExpr
+    | leftValue                                                             # leftValueExpr
+    | term                                                                  # termExpr
     ;
 
-leftValue: value=id ('[' expression ']')*;
+leftValue
+    :<assoc=right> array=leftValue '[' index=expression ']'                 # indexLeftValue1
+    |<assoc=right> array=term      '[' index=expression ']'                 # indexLeftValue2
+    |<assoc=right> object=leftValue '.' member=id                           # memberAccessLeftValue1
+    |<assoc=right> object=term '.' member=id                                # memberAccessLeftValue2
+    ;
+
+term
+    : '(' expression ')'                                                    # parensTerm
+    | name=id '(' args=arguments ')'                                        # functionCallTerm
+    | <assoc=right> object=term '.' method=id '(' args=arguments ')'        # methodCallTerm
+    | literal                                                               # literalTerm
+    | id                                                                    # idTerm
+    ;
+
+arguments
+    : argument (',' argument)*
+    | // empty arguments
+    ;
+
+argument: expression;
 
 id: ID;
 literal

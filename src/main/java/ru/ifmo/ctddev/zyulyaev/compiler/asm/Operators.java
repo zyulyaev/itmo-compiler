@@ -6,7 +6,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmNullary;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmUnary;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmImmediate;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmRegister;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.BinaryOperator;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgBinaryOperator;
 
 import java.util.stream.Stream;
 
@@ -18,7 +18,7 @@ class Operators {
     private Operators() {
     }
 
-    static Stream<AsmInstruction> instructions(BinaryOperator operator) {
+    static Stream<AsmInstruction> instructions(AsgBinaryOperator operator) {
         Stream.Builder<AsmInstruction> builder = Stream.builder();
         builder.add(AsmUnary.POP.create(AsmRegister.ECX));
         builder.add(AsmUnary.POP.create(AsmRegister.EAX));

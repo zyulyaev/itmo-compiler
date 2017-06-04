@@ -23,7 +23,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLineVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,10 +37,10 @@ import java.util.function.Function;
  */
 public class BcInterpreter {
     private final BcProgram program;
-    private final Map<ExternalFunction, Function<List<BcValue>, BcValue>> externalStubs;
+    private final Map<AsgExternalFunction, Function<List<BcValue>, BcValue>> externalStubs;
     private final BcStack stack = new BcStack();
 
-    public BcInterpreter(BcProgram program, Map<ExternalFunction, Function<List<BcValue>, BcValue>> externalStubs) {
+    public BcInterpreter(BcProgram program, Map<AsgExternalFunction, Function<List<BcValue>, BcValue>> externalStubs) {
         this.program = program;
         this.externalStubs = externalStubs;
     }
@@ -211,7 +211,7 @@ public class BcInterpreter {
                 stack.pop(definition.getFunction().getParameters().size());
                 stack.push(returnValue);
             } else {
-                ExternalFunction function = program.getExternalFunctions().get(address);
+                AsgExternalFunction function = program.getExternalFunctions().get(address);
                 Function<List<BcValue>, BcValue> stub = externalStubs.get(function);
                 List<BcValue> args = stack.pop(function.getParameterCount());
                 Collections.reverse(args);

@@ -9,7 +9,7 @@ import org.junit.runners.Parameterized.Parameter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -43,7 +43,7 @@ public abstract class CompilerTestBase {
         CompilerRunner runner = new CompilerRunner(mode, "");
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         try (Scanner in = new Scanner(Files.newBufferedReader(set.getInput()));
-             PrintWriter out = new PrintWriter(buffer))
+             PrintStream out = new PrintStream(buffer))
         {
             runner.run(new CompilerRunner.FileSet(set.getCode(),null,null), in, out);
         }
@@ -57,28 +57,28 @@ public abstract class CompilerTestBase {
         testInMode(CompilerRunner.Mode.INTERPRETER);
     }
 
-    @Test
-    public void testStackMachine() throws Exception {
-        testInMode(CompilerRunner.Mode.STACK_MACHINE);
-    }
-
-    @Test
-    public void testCompiler() throws Exception {
-        CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER, "runtime");
-
-        Path asm = tmp.newFile(set.getName() + ".s").toPath();
-        Path output = tmp.newFile(set.getName()).toPath();
-        Path log = tmp.newFile(set.getName() + ".log").toPath();
-
-        Assert.assertEquals("Compile " + set.getCode(), 0,
-            runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output), null, null));
-        Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
-            .redirectInput(set.getInput().toFile())
-            .redirectOutput(log.toFile())
-            .start().waitFor());
-
-        byte[] ans = Files.readAllBytes(log);
-        byte[] orig = Files.readAllBytes(set.getOrig());
-        Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
-    }
+//    @Test
+//    public void testStackMachine() throws Exception {
+//        testInMode(CompilerRunner.Mode.STACK_MACHINE);
+//    }
+//
+//    @Test
+//    public void testCompiler() throws Exception {
+//        CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER, "runtime");
+//
+//        Path asm = tmp.newFile(set.getName() + ".s").toPath();
+//        Path output = tmp.newFile(set.getName()).toPath();
+//        Path log = tmp.newFile(set.getName() + ".log").toPath();
+//
+//        Assert.assertEquals("Compile " + set.getCode(), 0,
+//            runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output), null, null));
+//        Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
+//            .redirectInput(set.getInput().toFile())
+//            .redirectOutput(log.toFile())
+//            .start().waitFor());
+//
+//        byte[] ans = Files.readAllBytes(log);
+//        byte[] orig = Files.readAllBytes(set.getOrig());
+//        Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
+//    }
 }

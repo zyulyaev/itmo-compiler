@@ -1,7 +1,8 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asg.build;
 
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -12,30 +13,17 @@ import java.util.Map;
  * @since 27.05.2017
  */
 class Context {
-    private final Map<String, AsgFunction> functionMap = new HashMap<>();
     private final Map<String, AsgVariable> variablesMap = new HashMap<>();
+    private final Environment environment;
     private final Context parent;
 
-    Context(Context parent) {
+    Context(Environment environment, Context parent) {
+        this.environment = environment;
         this.parent = parent;
     }
 
-    AsgFunction resolveFunction(String name) {
-        if (functionMap.containsKey(name)) {
-            return functionMap.get(name);
-        } else {
-            return parent == null ? null : parent.resolveFunction(name);
-        }
-    }
-
-    AsgFunction declareFunction(String name, List<AsgVariable> parameters) {
-        // todo function must create variables on each call
-        if (resolveFunction(name) != null) {
-            throw new IllegalStateException("Function " + name + " already declared");
-        }
-        AsgFunction function = new AsgFunction(name, parameters);
-        functionMap.put(name, function);
-        return function;
+    AsgFunction resolveFunction(String name, List<AsgType> argumentTypes) {
+        return environment.getFunction(name, argumentTypes);
     }
 
     AsgVariable resolveVariable(String name) {
@@ -46,24 +34,24 @@ class Context {
         }
     }
 
-    AsgVariable resolveOrDeclareVariable(String name) {
+    AsgVariable resolveOrDeclareVariable(String name, AsgType type) {
         AsgVariable variable = resolveVariable(name);
         if (variable == null) {
-            variable = new AsgVariable(name);
+            variable = new AsgVariable(name, type);
             variablesMap.put(name, variable);
+        } else if (!variable.getType().equals(type)) {
+            throw new IllegalArgumentException("Types don't match: " + name);
         }
         return variable;
     }
 
-    AsgVariable declareVariable(String name) {
-        AsgVariable variable = new AsgVariable(name);
-        variablesMap.put(name, variable);
-        return variable;
+    void declareVariable(AsgVariable variable) {
+        if (variablesMap.containsKey(variable.getName())) {
+            throw new IllegalStateException("Variable already defined: " + variable);
+        }
+        variablesMap.put(variable.getName(), variable);
     }
 
-    FunctionDefinitionParser asFunctionDefinitionParser() {
-        return new FunctionDefinitionParser(this);
-    }
 
     StatementParser asStatementParser() {
         return new StatementParser(this);
@@ -73,7 +61,11 @@ class Context {
         return new ExpressionParser(this);
     }
 
+    TypeParser asTypeParser() {
+        return environment.asTypeParser();
+    }
+
     Context createChild() {
-        return new Context(this);
+        return new Context(environment, this);
     }
 }

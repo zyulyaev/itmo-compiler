@@ -1,7 +1,11 @@
 package ru.ifmo.ctddev.zyulyaev.compiler;
 
 import com.google.common.collect.ImmutableMap;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgArrayType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgPredefinedType;
+import ru.ifmo.ctddev.zyulyaev.compiler.std.BoxedArrmakeFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.std.SimpleExternalFunction;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -13,26 +17,38 @@ import java.util.function.Function;
  * @since 27.05.2017
  */
 public abstract class Runtime<A, R> {
-    public static final ExternalFunction readFunction = new ExternalFunction("read", 0);
-    public static final ExternalFunction writeFunction = new ExternalFunction("write", 1);
+    public static final AsgExternalFunction readFunction = new SimpleExternalFunction("read",
+        AsgPredefinedType.INT);
+    public static final AsgExternalFunction writeFunction = new SimpleExternalFunction("write",
+        AsgPredefinedType.NONE, AsgPredefinedType.INT);
 
-    public static final ExternalFunction strlenFunction = new ExternalFunction("strlen", 1);
-    public static final ExternalFunction strgetFunction = new ExternalFunction("strget", 2);
-    public static final ExternalFunction strsubFunction = new ExternalFunction("strsub", 3);
-    public static final ExternalFunction strsetFunction = new ExternalFunction("strset", 3);
-    public static final ExternalFunction strcatFunction = new ExternalFunction("strcat", 2);
-    public static final ExternalFunction strcmpFunction = new ExternalFunction("strcmp", 2);
-    public static final ExternalFunction strdupFunction = new ExternalFunction("strdup", 1);
-    public static final ExternalFunction strmakeFunction = new ExternalFunction("strmake", 2);
+    public static final AsgExternalFunction strlenFunction = new SimpleExternalFunction("strlen",
+        AsgPredefinedType.INT, AsgPredefinedType.STRING);
+    public static final AsgExternalFunction strgetFunction = new SimpleExternalFunction("strget",
+        AsgPredefinedType.INT, AsgPredefinedType.STRING, AsgPredefinedType.INT);
+    public static final AsgExternalFunction strsubFunction = new SimpleExternalFunction("strsub",
+        AsgPredefinedType.STRING, AsgPredefinedType.STRING, AsgPredefinedType.INT, AsgPredefinedType.INT);
+    public static final AsgExternalFunction strsetFunction = new SimpleExternalFunction("strset",
+        AsgPredefinedType.NONE, AsgPredefinedType.STRING, AsgPredefinedType.INT, AsgPredefinedType.INT);
+    public static final AsgExternalFunction strcatFunction = new SimpleExternalFunction("strcat",
+        AsgPredefinedType.STRING, AsgPredefinedType.STRING, AsgPredefinedType.STRING);
+    public static final AsgExternalFunction strcmpFunction = new SimpleExternalFunction("strcmp",
+        AsgPredefinedType.INT, AsgPredefinedType.STRING, AsgPredefinedType.STRING);
+    public static final AsgExternalFunction strdupFunction = new SimpleExternalFunction("strdup",
+        AsgPredefinedType.STRING, AsgPredefinedType.STRING);
+    public static final AsgExternalFunction strmakeFunction = new SimpleExternalFunction("strmake",
+        AsgPredefinedType.STRING, AsgPredefinedType.INT, AsgPredefinedType.INT);
 
-    public static final ExternalFunction arrlenFunction = new ExternalFunction("arrlen", 1);
-    public static final ExternalFunction arrmakeFunction = new ExternalFunction("arrmake", 2);
-    public static final ExternalFunction ArrmakeFunction = new ExternalFunction("Arrmake", 2);
+    public static final AsgExternalFunction arrlenFunction = new SimpleExternalFunction("arrlen",
+        AsgPredefinedType.INT, new AsgArrayType(AsgPredefinedType.ANY));
+    public static final AsgExternalFunction arrmakeFunction = new SimpleExternalFunction("arrmake",
+        new AsgArrayType(AsgPredefinedType.INT), AsgPredefinedType.INT, AsgPredefinedType.INT);
+    public static final AsgExternalFunction ArrmakeFunction = new BoxedArrmakeFunction();
 
-    private final Map<ExternalFunction, Function<A, R>> functionDefinitions;
+    private final Map<AsgExternalFunction, Function<A, R>> functionDefinitions;
 
     protected Runtime() {
-        this.functionDefinitions = ImmutableMap.<ExternalFunction, Function<A, R>>builder()
+        this.functionDefinitions = ImmutableMap.<AsgExternalFunction, Function<A, R>>builder()
             .put(readFunction, this::readFunctionStub)
             .put(writeFunction, this::writeFunctionStub)
             .put(strlenFunction, this::strlenFunctionStub)
@@ -49,7 +65,7 @@ public abstract class Runtime<A, R> {
             .build();
     }
 
-    public static Collection<ExternalFunction> getExternalFunctions() {
+    public static Collection<AsgExternalFunction> getExternalFunctions() {
         return Arrays.asList(readFunction, writeFunction, strlenFunction, strgetFunction, strsubFunction,
             strsetFunction, strcatFunction, strcmpFunction, strdupFunction, strmakeFunction,
             arrlenFunction, arrmakeFunction, ArrmakeFunction);
@@ -71,7 +87,7 @@ public abstract class Runtime<A, R> {
     protected abstract R arrmakeFunctionStub(A args);
     protected abstract R ArrmakeFunctionStub(A args);
 
-    public Map<ExternalFunction, Function<A, R>> getFunctionDefinitions() {
+    public Map<AsgExternalFunction, Function<A, R>> getFunctionDefinitions() {
         return functionDefinitions;
     }
 }

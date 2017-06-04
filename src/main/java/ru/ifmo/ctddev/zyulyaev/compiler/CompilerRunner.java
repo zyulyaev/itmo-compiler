@@ -19,7 +19,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.Interpreter;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.InterpreterRuntime;
 
 import java.io.BufferedWriter;
-import java.io.PrintWriter;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,12 +39,12 @@ public class CompilerRunner {
         this.runtime = runtime;
     }
 
-    public int run(FileSet fileSet, Scanner in, PrintWriter out) throws Exception {
+    public int run(FileSet fileSet, Scanner in, PrintStream out) throws Exception {
         GrammarParser parser = new GrammarParser(new CommonTokenStream(new GrammarLexer(CharStreams.fromPath(fileSet.getInput()))));
         AsgProgram program = AsgBuilder.build(parser, Runtime.getExternalFunctions());
         switch (mode) {
             case INTERPRETER:
-                new Interpreter().interpret(program, new InterpreterRuntime(in, out).getFunctionDefinitions());
+                new Interpreter().interpret(program, new InterpreterRuntime(in, out));
                 return 0;
             case STACK_MACHINE: {
                 BcProgram bcProgram = BcProgramTranslator.translate(program);
@@ -87,10 +87,11 @@ public class CompilerRunner {
             runner = new CompilerRunner(Mode.COMPILER, runtime);
         }
         if (runner != null) {
-            try (Scanner in = new Scanner(System.in);
-                PrintWriter out = new PrintWriter(System.out)) {
-                System.exit(runner.run(FileSet.fromInput(args.files.get(0)), in, out));
+            int result;
+            try (Scanner in = new Scanner(System.in)) {
+                result = runner.run(FileSet.fromInput(args.files.get(0)), in, System.out);
             }
+            System.exit(result);
         } else {
             jCommander.usage();
         }

@@ -1,13 +1,14 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.interpreter;
 
-import com.google.common.base.Strings;
 import ru.ifmo.ctddev.zyulyaev.compiler.Runtime;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.ArrayValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.IntValue;
+import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.NoneValue;
+import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.RightValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.StringValue;
-import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.value.Value;
 
-import java.io.PrintWriter;
+import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.stream.Stream;
@@ -16,93 +17,102 @@ import java.util.stream.Stream;
  * @author zyulyaev
  * @since 29.05.2017
  */
-public class InterpreterRuntime extends Runtime<List<Value>, Value> {
+public class InterpreterRuntime extends Runtime<List<RightValue>, RightValue> {
     private final Scanner in;
-    private final PrintWriter out;
+    private final PrintStream out;
 
-    public InterpreterRuntime(Scanner in, PrintWriter out) {
+    public InterpreterRuntime(Scanner in, PrintStream out) {
         this.in = in;
         this.out = out;
     }
 
     @Override
-    protected Value readFunctionStub(List<Value> args) {
+    protected RightValue readFunctionStub(List<RightValue> args) {
         out.print("> ");
         return new IntValue(in.nextInt());
     }
 
     @Override
-    protected Value writeFunctionStub(List<Value> args) {
+    protected RightValue writeFunctionStub(List<RightValue> args) {
         out.println(args.get(0).asInt().getValue());
-        return null;
+        return NoneValue.INSTANCE;
     }
 
     @Override
-    protected Value strlenFunctionStub(List<Value> args) {
-        return new IntValue(args.get(0).asString().getValue().length());
+    protected RightValue strlenFunctionStub(List<RightValue> args) {
+        return new IntValue(args.get(0).asString().getChars().length);
     }
 
     @Override
-    protected Value strgetFunctionStub(List<Value> args) {
-        return new IntValue(args.get(0).asString().getValue().codePointAt(args.get(1).asInt().getValue()));
+    protected RightValue strgetFunctionStub(List<RightValue> args) {
+        return new IntValue(args.get(0).asString().getChars()[args.get(1).asInt().getValue()]);
     }
 
     @Override
-    protected Value strsubFunctionStub(List<Value> args) {
+    protected RightValue strsubFunctionStub(List<RightValue> args) {
         int start = args.get(1).asInt().getValue();
         int end = start + args.get(2).asInt().getValue();
-        return new StringValue(args.get(0).asString().getValue().substring(start, end));
+        return new StringValue(Arrays.copyOfRange(args.get(0).asString().getChars(), start, end));
     }
 
     @Override
-    protected Value strsetFunctionStub(List<Value> args) {
+    protected RightValue strsetFunctionStub(List<RightValue> args) {
         StringValue value = args.get(0).asString();
         int idx = args.get(1).asInt().getValue();
         int ch = args.get(2).asInt().getValue();
-        char[] chars = value.getValue().toCharArray();
+        char[] chars = value.getChars();
         chars[idx] = (char) ch;
-        value.setValue(new String(chars));
-        return null;
+        return NoneValue.INSTANCE;
     }
 
     @Override
-    protected Value strcatFunctionStub(List<Value> args) {
-        return new StringValue(args.get(0).asString().getValue() + args.get(1).asString().getValue());
+    protected RightValue strcatFunctionStub(List<RightValue> args) {
+        char[] left = args.get(0).asString().getChars();
+        char[] right = args.get(1).asString().getChars();
+        char[] chars = new char[left.length + right.length];
+        System.arraycopy(left, 0, chars, 0, left.length);
+        System.arraycopy(right, 0, chars, left.length, right.length);
+        return new StringValue(chars);
     }
 
     @Override
-    protected Value strcmpFunctionStub(List<Value> args) {
-        return new IntValue(args.get(0).asString().getValue().compareTo(args.get(1).asString().getValue()));
+    protected RightValue strcmpFunctionStub(List<RightValue> args) {
+        String left = new String(args.get(0).asString().getChars());
+        String right = new String(args.get(1).asString().getChars());
+        return new IntValue(left.compareTo(right));
     }
 
     @Override
-    protected Value strdupFunctionStub(List<Value> args) {
-        return new StringValue(args.get(0).asString().getValue());
+    protected RightValue strdupFunctionStub(List<RightValue> args) {
+        return new StringValue(args.get(0).asString().getChars().clone());
     }
 
     @Override
-    protected Value strmakeFunctionStub(List<Value> args) {
-        String ch = "" + (char) args.get(1).asInt().getValue();
-        int count = args.get(0).asInt().getValue();
-        return new StringValue(Strings.repeat(ch, count));
+    protected RightValue strmakeFunctionStub(List<RightValue> args) {
+        int length = args.get(0).asInt().getValue();
+        char[] chars = new char[length];
+        Arrays.fill(chars, (char) args.get(1).asInt().getValue());
+        return new StringValue(chars);
     }
 
     @Override
-    protected Value arrlenFunctionStub(List<Value> args) {
+    protected RightValue arrlenFunctionStub(List<RightValue> args) {
         return new IntValue(args.get(0).asArray().length());
     }
 
     @Override
-    protected Value arrmakeFunctionStub(List<Value> args) {
-        return new ArrayValue(
-            Stream.generate(() -> args.get(1)).limit(args.get(0).asInt().getValue()).toArray(Value[]::new)
-        );
+    protected RightValue arrmakeFunctionStub(List<RightValue> args) {
+        return arrmakeStub(args);
     }
 
     @Override
-    protected Value ArrmakeFunctionStub(List<Value> args) {
+    protected RightValue ArrmakeFunctionStub(List<RightValue> args) {
+        return arrmakeStub(args);
+    }
+
+    private RightValue arrmakeStub(List<RightValue> args) {
         return new ArrayValue(
-            Stream.generate(() -> args.get(1)).limit(args.get(0).asInt().getValue()).toArray(Value[]::new)
+            Stream.generate(() -> args.get(1)).limit(args.get(0).asInt().getValue()).toArray(RightValue[]::new)
         );
     }
 }

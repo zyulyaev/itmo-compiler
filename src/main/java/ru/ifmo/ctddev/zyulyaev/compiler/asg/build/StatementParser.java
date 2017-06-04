@@ -2,22 +2,21 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.build;
 
 import ru.ifmo.ctddev.zyulyaev.GrammarBaseVisitor;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgAssignment;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgExpressionStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgForStatement;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgFunctionCallStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgIfStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgRepeatStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgReturnStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementList;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgVariableAssignment;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgWhileStatement;
 
 import java.util.ArrayList;
-import java.util.Collections;
 
 /**
  * @author zyulyaev
@@ -31,18 +30,24 @@ class StatementParser extends GrammarBaseVisitor<AsgStatement> {
     }
 
     @Override
-    public AsgStatement visitAssignment(GrammarParser.AssignmentContext assignment) {
-        if (assignment.variable.expression().isEmpty()) {
-            String name = assignment.variable.value.getText();
-            AsgVariable variable = context.resolveOrDeclareVariable(name);
-            AsgExpression expression = assignment.expression().accept(context.asExpressionParser());
-            return new AsgAssignment(new AsgLeftValueExpression(variable, Collections.emptyList()), expression);
-        } else {
-            AsgLeftValueExpression leftValue =
-                (AsgLeftValueExpression) assignment.variable.accept(context.asExpressionParser());
-            AsgExpression expression = assignment.expression().accept(context.asExpressionParser());
-            return new AsgAssignment(leftValue, expression);
-        }
+    public AsgStatement visitVariableAssignment(GrammarParser.VariableAssignmentContext ctx) {
+        String name = ctx.variable.getText();
+        AsgExpression expression = ctx.value.accept(context.asExpressionParser());
+        AsgVariable variable = context.resolveOrDeclareVariable(name, expression.getResultType());
+        return new AsgVariableAssignment(variable, expression);
+    }
+
+    @Override
+    public AsgStatement visitLeftValueAssignment(GrammarParser.LeftValueAssignmentContext ctx) {
+        AsgLeftValueExpression leftValue =
+            (AsgLeftValueExpression) ctx.leftValue().accept(context.asExpressionParser());
+        AsgExpression expression = ctx.value.accept(context.asExpressionParser());
+        return new AsgAssignment(leftValue, expression);
+    }
+
+    @Override
+    public AsgStatement visitExpressionStatement(GrammarParser.ExpressionStatementContext ctx) {
+        return new AsgExpressionStatement(ctx.expression().accept(context.asExpressionParser()));
     }
 
     @Override
@@ -70,9 +75,9 @@ class StatementParser extends GrammarBaseVisitor<AsgStatement> {
     @Override
     public AsgStatement visitForStatement(GrammarParser.ForStatementContext ctx) {
         Context forContext = context.createChild();
-        AsgStatement initialization = ctx.init.accept(forContext.asStatementParser());
-        AsgExpression termination = ctx.term.accept(forContext.asExpressionParser());
-        AsgStatement increment = ctx.inc.accept(forContext.asStatementParser());
+        AsgStatement initialization = ctx.initializaion.accept(forContext.asStatementParser());
+        AsgExpression termination = ctx.termination.accept(forContext.asExpressionParser());
+        AsgStatement increment = ctx.increment.accept(forContext.asStatementParser());
         AsgStatement body = ctx.body.accept(forContext.asStatementParser());
         return new AsgForStatement(initialization, termination, increment, body);
     }
@@ -90,12 +95,6 @@ class StatementParser extends GrammarBaseVisitor<AsgStatement> {
         AsgStatement body = ctx.body.accept(repeatContext.asStatementParser());
         AsgExpression condition = ctx.condition.accept(repeatContext.asExpressionParser());
         return new AsgRepeatStatement(condition, body);
-    }
-
-    @Override
-    public AsgStatement visitFunctionCall(GrammarParser.FunctionCallContext ctx) {
-        AsgFunctionCallExpression expression = (AsgFunctionCallExpression) ctx.accept(context.asExpressionParser());
-        return new AsgFunctionCallStatement(expression);
     }
 
     @Override

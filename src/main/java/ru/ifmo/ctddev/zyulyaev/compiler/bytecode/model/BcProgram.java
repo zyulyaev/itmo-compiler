@@ -1,7 +1,7 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model;
 
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
 
 import java.util.Map;
 
@@ -12,6 +12,6 @@ import java.util.Map;
 @Data
 public class BcProgram {
     private final Map<BcFunction, BcFunctionDefinition> functions;
-    private final Map<BcFunction, ExternalFunction> externalFunctions;
+    private final Map<BcFunction, AsgExternalFunction> externalFunctions;
     private final BcFunctionDefinition main;
 }

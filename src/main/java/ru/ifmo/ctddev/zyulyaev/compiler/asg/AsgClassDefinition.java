@@ -1,4 +1,4 @@
-package ru.ifmo.ctddev.zyulyaev.compiler.asg.entity;
+package ru.ifmo.ctddev.zyulyaev.compiler.asg;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,12 +8,12 @@ import java.util.List;
 
 /**
  * @author zyulyaev
- * @since 27.05.2017
+ * @since 03.06.2017
  */
 @Getter
-@AllArgsConstructor
 @ToString
-public class AsgFunction {
+@AllArgsConstructor
+public class AsgClassDefinition {
     private final String name;
-    private final List<AsgVariable> parameters;
+    private final List<AsgMethod> methods;
 }

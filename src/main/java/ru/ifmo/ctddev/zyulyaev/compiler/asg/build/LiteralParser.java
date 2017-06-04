@@ -21,7 +21,7 @@ class LiteralParser extends GrammarBaseVisitor<AsgLiteralExpression<?>> {
 
     @Override
     public AsgLiteralExpression<?> visitCharLiteral(GrammarParser.CharLiteralContext ctx) {
-        return new AsgLiteralExpression<>(AsgLiteralExpression.LiteralType.INT, parseLiteral(ctx.getText()).codePointAt(0));
+        return new AsgLiteralExpression<>(AsgLiteralExpression.LiteralType.INT, (int) parseLiteral(ctx.getText()).charAt(0));
     }
 
     @Override
@@ -31,7 +31,7 @@ class LiteralParser extends GrammarBaseVisitor<AsgLiteralExpression<?>> {
 
     @Override
     public AsgLiteralExpression<?> visitNullLiteral(GrammarParser.NullLiteralContext ctx) {
-        return new AsgLiteralExpression<>(AsgLiteralExpression.LiteralType.NULL, null);
+        return new AsgLiteralExpression<>(AsgLiteralExpression.LiteralType.NONE, null);
     }
 
     private String parseLiteral(String text) {

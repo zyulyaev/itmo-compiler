@@ -1,10 +1,10 @@
-package ru.ifmo.ctddev.zyulyaev.compiler.lang;
+package ru.ifmo.ctddev.zyulyaev.compiler.asg;
 
 /**
  * @author zyulyaev
  * @since 27.05.2017
  */
-public enum BinaryOperator {
+public enum AsgBinaryOperator {
     // by precedence
     MUL, DIV, MOD,
     ADD, SUB,

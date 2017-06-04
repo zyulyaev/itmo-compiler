@@ -1,12 +1,11 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asg;
 
-import com.google.common.collect.BiMap;
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.ExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author zyulyaev
@@ -15,6 +14,11 @@ import java.util.List;
 @Data
 public class AsgProgram {
     private final List<AsgFunctionDefinition> functionDefinitions;
-    private final BiMap<ExternalFunction, AsgFunction> externalDefinitions;
+    private final List<AsgDataType> dataDefinitions;
+    private final List<AsgClassDefinition> classDefinitions;
+    private final List<AsgImplDefinition> implDefinitions;
+
+    private final Map<AsgFunction, AsgExternalFunction> externalFunctions;
+
     private final AsgStatement main;
 }

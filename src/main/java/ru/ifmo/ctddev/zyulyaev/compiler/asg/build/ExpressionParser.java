@@ -3,14 +3,17 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.build;
 import com.google.common.collect.ImmutableMap;
 import ru.ifmo.ctddev.zyulyaev.GrammarBaseVisitor;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgBinaryOperator;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgCastExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
-import ru.ifmo.ctddev.zyulyaev.compiler.lang.BinaryOperator;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgIndexExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgMemberAccessExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgVariableExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
 import java.util.List;
 import java.util.Map;
@@ -21,24 +24,24 @@ import java.util.stream.Collectors;
  * @since 27.05.2017
  */
 class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
-    private static final Map<String, BinaryOperator> OPERATOR_BY_TOKEN = ImmutableMap.<String, BinaryOperator>builder()
-        .put("*", BinaryOperator.MUL)
-        .put("/", BinaryOperator.DIV)
-        .put("%", BinaryOperator.MOD)
+    private static final Map<String, AsgBinaryOperator> OPERATOR_BY_TOKEN = ImmutableMap.<String, AsgBinaryOperator>builder()
+        .put("*", AsgBinaryOperator.MUL)
+        .put("/", AsgBinaryOperator.DIV)
+        .put("%", AsgBinaryOperator.MOD)
 
-        .put("+", BinaryOperator.ADD)
-        .put("-", BinaryOperator.SUB)
+        .put("+", AsgBinaryOperator.ADD)
+        .put("-", AsgBinaryOperator.SUB)
 
-        .put(">", BinaryOperator.GT)
-        .put(">=", BinaryOperator.GTE)
-        .put("<", BinaryOperator.LT)
-        .put("<=", BinaryOperator.LTE)
-        .put("==", BinaryOperator.EQ)
-        .put("!=", BinaryOperator.NEQ)
+        .put(">", AsgBinaryOperator.GT)
+        .put(">=", AsgBinaryOperator.GTE)
+        .put("<", AsgBinaryOperator.LT)
+        .put("<=", AsgBinaryOperator.LTE)
+        .put("==", AsgBinaryOperator.EQ)
+        .put("!=", AsgBinaryOperator.NEQ)
 
-        .put("&&", BinaryOperator.AND)
-        .put("||", BinaryOperator.OR)
-        .put("!!", BinaryOperator.WAT)
+        .put("&&", AsgBinaryOperator.AND)
+        .put("||", AsgBinaryOperator.OR)
+        .put("!!", AsgBinaryOperator.WAT)
 
         .build();
 
@@ -52,26 +55,66 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
     public AsgExpression visitBinExpr(GrammarParser.BinExprContext ctx) {
         AsgExpression left = ctx.left.accept(this);
         AsgExpression right = ctx.right.accept(this);
-        BinaryOperator operator = OPERATOR_BY_TOKEN.get(ctx.op.getText());
+        AsgBinaryOperator operator = OPERATOR_BY_TOKEN.get(ctx.op.getText());
         return new AsgBinaryExpression(left, right, operator);
     }
 
     @Override
-    public AsgExpression visitFunctionCall(GrammarParser.FunctionCallContext ctx) {
-        AsgFunction function = context.resolveFunction(ctx.name.getText());
+    public AsgExpression visitIndexLeftValue1(GrammarParser.IndexLeftValue1Context ctx) {
+        AsgExpression array = ctx.array.accept(this);
+        AsgExpression index = ctx.index.accept(this);
+        return new AsgIndexExpression(array, index);
+    }
+
+    @Override
+    public AsgExpression visitIndexLeftValue2(GrammarParser.IndexLeftValue2Context ctx) {
+        AsgExpression array = ctx.array.accept(this);
+        AsgExpression index = ctx.index.accept(this);
+        return new AsgIndexExpression(array, index);
+    }
+
+    @Override
+    public AsgExpression visitMemberAccessLeftValue1(GrammarParser.MemberAccessLeftValue1Context ctx) {
+        AsgExpression object = ctx.object.accept(this);
+        String member = ctx.member.getText();
+        return new AsgMemberAccessExpression(object, member);
+    }
+
+    @Override
+    public AsgExpression visitMemberAccessLeftValue2(GrammarParser.MemberAccessLeftValue2Context ctx) {
+        AsgExpression object = ctx.object.accept(this);
+        String member = ctx.member.getText();
+        return new AsgMemberAccessExpression(object, member);
+    }
+
+    @Override
+    public AsgExpression visitParensTerm(GrammarParser.ParensTermContext ctx) {
+        return ctx.expression().accept(this);
+    }
+
+    @Override
+    public AsgExpression visitFunctionCallTerm(GrammarParser.FunctionCallTermContext ctx) {
         List<AsgExpression> arguments = ctx.args.argument().stream()
             .map(arg -> arg.accept(this))
             .collect(Collectors.toList());
+        List<AsgType> argumentTypes = arguments.stream().map(AsgExpression::getResultType).collect(Collectors.toList());
+        AsgFunction function = context.resolveFunction(ctx.name.getText(), argumentTypes);
         return new AsgFunctionCallExpression(function, arguments);
     }
 
     @Override
-    public AsgExpression visitLeftValue(GrammarParser.LeftValueContext ctx) {
-        AsgVariable variable = context.resolveVariable(ctx.value.getText());
-        List<AsgExpression> indexes = ctx.expression().stream()
-            .map(index -> index.accept(this))
-            .collect(Collectors.toList());
-        return new AsgLeftValueExpression(variable, indexes);
+    public AsgExpression visitMethodCallTerm(GrammarParser.MethodCallTermContext ctx) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public AsgExpression visitLiteralTerm(GrammarParser.LiteralTermContext ctx) {
+        return ctx.literal().accept(new LiteralParser());
+    }
+
+    @Override
+    public AsgExpression visitIdTerm(GrammarParser.IdTermContext ctx) {
+        return new AsgVariableExpression(context.resolveVariable(ctx.id().getText()));
     }
 
     @Override
@@ -83,12 +126,9 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
     }
 
     @Override
-    public AsgExpression visitLiteralExpr(GrammarParser.LiteralExprContext ctx) {
-        return ctx.literal().accept(new LiteralParser());
-    }
-
-    @Override
-    public AsgExpression visitParensExpr(GrammarParser.ParensExprContext ctx) {
-        return ctx.expression().accept(this);
+    public AsgExpression visitCastExpr(GrammarParser.CastExprContext ctx) {
+        AsgExpression expression = ctx.expression().accept(this);
+        AsgType target = ctx.type().accept(context.asTypeParser());
+        return new AsgCastExpression(expression, target, true);
     }
 }

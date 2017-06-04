@@ -1,7 +1,8 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asg.expr;
 
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.entity.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
 import java.util.List;
 
@@ -18,8 +19,18 @@ public class AsgFunctionCallExpression implements AsgExpression {
         if (function.getParameters().size() != arguments.size()) {
             throw new IllegalArgumentException("Arguments and parameters count does not match");
         }
+        for (int i = 0; i < arguments.size(); i++) {
+            if (!function.getParameters().get(i).getType().isAssignableFrom(arguments.get(i).getResultType())) {
+                throw new IllegalArgumentException("Function parameter types don't match");
+            }
+        }
         this.function = function;
         this.arguments = arguments;
+    }
+
+    @Override
+    public AsgType getResultType() {
+        return function.getReturnType();
     }
 
     @Override
