@@ -14,9 +14,9 @@ import java.util.Map;
  */
 @Data
 public class AsgProgram {
-    private final List<AsgFunctionDefinition> functionDefinitions;
     private final List<AsgDataType> dataDefinitions;
     private final List<AsgClassType> classDefinitions;
+    private final List<AsgFunctionDefinition> functionDefinitions;
     private final List<AsgImplDefinition> implDefinitions;
 
     private final Map<AsgFunction, AsgExternalFunction> externalFunctions;

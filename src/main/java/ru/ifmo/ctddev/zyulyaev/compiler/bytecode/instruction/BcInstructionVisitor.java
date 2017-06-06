@@ -9,27 +9,33 @@ public interface BcInstructionVisitor<T> {
 
     T visit(BcStringInit stringInit);
 
+    T visit(BcDataInit dataInit);
+
     T visit(BcBinOp binOp);
 
     T visit(BcJump jump);
 
-    T visit(BcPush push);
+    T visit(BcJumpIfZero jump);
 
     T visit(BcCall call);
 
-    T visit(BcPushAddress pushAddress);
+    T visit(BcMethodCall call);
 
-    T visitNop(BcNullaryInstructions nop);
+    T visit(BcStore store);
 
-    T visitPop(BcNullaryInstructions pop);
+    T visit(BcLoad load);
 
-    T visitLoad(BcNullaryInstructions load);
+    T visit(BcIndexLoad indexLoad);
 
-    T visitStore(BcNullaryInstructions store);
+    T visit(BcIndexStore indexStore);
 
-    T visitReturn(BcNullaryInstructions ret);
+    T visit(BcMemberLoad memberLoad);
+
+    T visit(BcMemberStore memberStore);
+
+    T visit(BcReturn ret);
+
+    T visit(BcCast cast);
 
     T visit(BcUnset unset);
-
-    T visitIndex(BcNullaryInstructions index);
 }

@@ -26,7 +26,7 @@ public class AsgArrayExpression implements AsgExpression {
     }
 
     @Override
-    public AsgType getResultType() {
+    public AsgArrayType getResultType() {
         return resultType;
     }
 

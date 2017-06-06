@@ -92,13 +92,13 @@ public class AsgBuilder {
             impl.getDataType().getImplementedClasses().add(impl.getClassType());
         }
 
-        Context mainContext = new Context(environment, null);
+        Context mainContext = new Context(environment);
         AsgStatement mainBody = program.statements().accept(mainContext.asStatementParser());
 
         return new AsgProgram(
-            definedFunctions,
             definedTypes,
             definedClasses,
+            definedFunctions,
             definedImplementations,
             environment.getExternalFunctions(),
             mainBody
@@ -114,7 +114,7 @@ public class AsgBuilder {
     private void parseDataDefinition(GrammarParser.DataDefinitionContext ctx) {
         AsgDataType type = (AsgDataType) environment.getType(ctx.name.getText());
         type.setFields(ctx.fields().field().stream()
-            .map(field -> new AsgDataType.Field(field.name.getText(), field.accept(environment.asTypeParser())))
+            .map(field -> new AsgDataType.Field(type, field.name.getText(), field.accept(environment.asTypeParser())))
             .collect(Collectors.toList()));
     }
 
@@ -155,7 +155,7 @@ public class AsgBuilder {
             .map(param -> param.type().accept(environment.asTypeParser()))
             .collect(Collectors.toList());
         AsgFunction declaration = environment.getFunction(name, parameterTypes);
-        Context functionContext = new Context(environment, null);
+        Context functionContext = new Context(environment);
         List<AsgVariable> parameters = ctx.parameters().parameter().stream()
             .map(param -> functionContext.declareVariable(
                 param.id().getText(),
@@ -181,7 +181,7 @@ public class AsgBuilder {
     {
         AsgMethod method = classType.getMethods().stream().filter(m -> m.getName().equals(ctx.name.getText()))
             .findFirst().orElseThrow(() -> new NoSuchElementException("Method " + ctx.name.getText() + " not found"));
-        Context methodContext = new Context(environment, null);
+        Context methodContext = new Context(environment);
         AsgVariable thisValue = methodContext.declareVariable("this", dataType, true);
         List<AsgVariable> parameters = ctx.parameters().parameter().stream()
             .map(param -> methodContext.declareVariable(

@@ -18,11 +18,9 @@ import java.util.Map;
 class Context {
     private final Map<String, AsgVariable> variablesMap = new HashMap<>();
     private final Environment environment;
-    private final Context parent;
 
-    Context(Environment environment, Context parent) {
+    Context(Environment environment) {
         this.environment = environment;
-        this.parent = parent;
     }
 
     AsgFunction resolveFunction(String name, List<AsgType> argumentTypes) {
@@ -40,11 +38,7 @@ class Context {
     }
 
     AsgVariable resolveVariable(String name) {
-        if (variablesMap.containsKey(name)) {
-            return variablesMap.get(name);
-        } else {
-            return parent == null ? null : parent.resolveVariable(name);
-        }
+        return variablesMap.get(name);
     }
 
     AsgVariable resolveOrDeclareVariable(String name, AsgType type, boolean readOnly) {
@@ -80,9 +74,5 @@ class Context {
 
     TypeParser asTypeParser() {
         return environment.asTypeParser();
-    }
-
-    Context createChild() {
-        return new Context(environment, this);
     }
 }

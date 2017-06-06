@@ -1,4 +1,4 @@
-package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model;
+package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.line;
 
 /**
  * @author zyulyaev

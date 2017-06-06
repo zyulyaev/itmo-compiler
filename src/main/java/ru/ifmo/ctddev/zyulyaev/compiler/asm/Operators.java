@@ -57,7 +57,6 @@ class Operators {
             comparison(builder, AsmUnary.SETNE);
             break;
         case OR:
-        case WAT:
             builder.add(AsmBinary.OR.create(AsmRegister.EAX, AsmRegister.ECX));
             builder.add(AsmBinary.MOV.create(AsmRegister.EAX, new AsmImmediate(0)));
             builder.add(AsmUnary.SETNE.create(AsmRegister.AL));

@@ -1,8 +1,9 @@
-package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model;
+package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.line;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
 
 /**
  * @author zyulyaev

@@ -1,21 +1,17 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter;
 
 import ru.ifmo.ctddev.zyulyaev.compiler.Runtime;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcArrayPointer;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcPointer;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcScalar;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValue;
 
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
-import java.util.stream.Stream;
 
 /**
  * @author zyulyaev
  * @since 29.05.2017
  */
-public class BcRuntime extends Runtime<List<BcValue>, BcValue> {
+public class BcRuntime extends Runtime<List<Value>, Value> {
     private final Scanner in;
     private final PrintStream out;
 
@@ -25,112 +21,92 @@ public class BcRuntime extends Runtime<List<BcValue>, BcValue> {
     }
 
     @Override
-    protected BcValue readFunctionStub(List<BcValue> args) {
+    protected Value readFunctionStub(List<Value> args) {
         out.print("> ");
-        return new BcScalar(in.nextInt());
+        return new IntValue(in.nextInt());
     }
 
     @Override
-    protected BcValue writeFunctionStub(List<BcValue> args) {
-        out.println(args.get(0).asScalar().getValue());
+    protected Value writeFunctionStub(List<Value> args) {
+        out.println(args.get(0).asInt().getValue());
         return null;
     }
 
     @Override
-    protected BcValue strlenFunctionStub(List<BcValue> args) {
-        return new BcScalar(args.get(0).asPtr().length());
+    protected Value strlenFunctionStub(List<Value> args) {
+        return new IntValue(args.get(0).asString().length());
     }
 
     @Override
-    protected BcValue strgetFunctionStub(List<BcValue> args) {
-        return args.get(0).asPtr().shift(args.get(1).asScalar().getValue()).get();
+    protected Value strgetFunctionStub(List<Value> args) {
+        return new IntValue(args.get(0).asString().get(args.get(1).asInt().getValue()));
     }
 
     @Override
-    protected BcValue strsubFunctionStub(List<BcValue> args) {
-        BcPointer ptr = args.get(0).asPtr();
-        int start = args.get(1).asScalar().getValue();
-        int length = args.get(2).asScalar().getValue();
-        BcValue[] result = new BcValue[length];
-        for (int i = 0; i < length; i++) {
-            result[i] = ptr.shift(start + i).get();
-        }
-        return new BcArrayPointer(result, 0);
+    protected Value strsubFunctionStub(List<Value> args) {
+        char[] chars = args.get(0).asString().getChars();
+        int start = args.get(1).asInt().getValue();
+        int length = args.get(2).asInt().getValue();
+        return new StringValue(Arrays.copyOfRange(chars, start, start + length));
     }
 
     @Override
-    protected BcValue strsetFunctionStub(List<BcValue> args) {
-        args.get(0).asPtr().shift(args.get(1).asScalar().getValue()).set(args.get(2));
+    protected Value strsetFunctionStub(List<Value> args) {
+        args.get(0).asString().set(args.get(1).asInt().getValue(), args.get(2).asInt().getValue());
         return null;
     }
 
     @Override
-    protected BcValue strcatFunctionStub(List<BcValue> args) {
-        BcPointer left = args.get(0).asPtr();
-        BcPointer right = args.get(1).asPtr();
-        BcValue[] result = new BcValue[left.length() + right.length()];
-        for (int i = 0; i < left.length(); i++) {
-            result[i] = left.shift(i).get();
-        }
-        for (int i = 0; i < right.length(); i++) {
-            result[left.length() + i] = right.shift(i).get();
-        }
-        return new BcArrayPointer(result, 0);
+    protected Value strcatFunctionStub(List<Value> args) {
+        char[] left = args.get(0).asString().getChars();
+        char[] right = args.get(1).asString().getChars();
+        char[] result = new char[left.length + right.length];
+        System.arraycopy(left, 0, result, 0, left.length);
+        System.arraycopy(right, 0, result, left.length, right.length);
+        return new StringValue(result);
     }
 
     @Override
-    protected BcValue strcmpFunctionStub(List<BcValue> args) {
-        BcPointer left = args.get(0).asPtr();
-        BcPointer right = args.get(1).asPtr();
-        for (int i = 0; i < Math.max(left.length(), right.length()); i++) {
-            if (i >= left.length()) {
-                return new BcScalar(-1);
-            }
-            if (i >= right.length()) {
-                return new BcScalar(1);
-            }
-            int cmp = Integer.compare(left.shift(i).get().asScalar().getValue(),
-                right.shift(i).get().asScalar().getValue());
-            if (cmp != 0) {
-                return new BcScalar(cmp > 0 ? 1 : -1);
-            }
-        }
-        return new BcScalar(0);
+    protected Value strcmpFunctionStub(List<Value> args) {
+        String left = new String(args.get(0).asString().getChars());
+        String right = new String(args.get(1).asString().getChars());
+        return new IntValue(left.compareTo(right));
     }
 
     @Override
-    protected BcValue strdupFunctionStub(List<BcValue> args) {
-        BcPointer pointer = args.get(0).asPtr();
-        BcValue[] result = new BcValue[pointer.length()];
-        for (int i = 0; i < pointer.length(); i++) {
-            result[i] = pointer.shift(i).get();
-        }
-        return new BcArrayPointer(result, 0);
+    protected Value strdupFunctionStub(List<Value> args) {
+        return new StringValue(args.get(0).asString().getChars().clone());
     }
 
     @Override
-    protected BcValue strmakeFunctionStub(List<BcValue> args) {
-        int size = args.get(0).asScalar().getValue();
-        BcValue value = args.get(1);
-        return new BcArrayPointer(Stream.generate(() -> value).limit(size).toArray(BcValue[]::new), 0);
+    protected Value strmakeFunctionStub(List<Value> args) {
+        int size = args.get(0).asInt().getValue();
+        char ch = (char) args.get(1).asInt().getValue();
+        char[] result = new char[size];
+        Arrays.fill(result, ch);
+        return new StringValue(result);
     }
 
     @Override
-    protected BcValue arrlenFunctionStub(List<BcValue> args) {
-        return new BcScalar(args.get(0).asPtr().length());
+    protected Value arrlenFunctionStub(List<Value> args) {
+        return new IntValue(args.get(0).asArray().length());
     }
 
     @Override
-    protected BcValue arrmakeFunctionStub(List<BcValue> args) {
-        int size = args.get(0).asScalar().getValue();
-        BcValue value = args.get(1);
-        return new BcArrayPointer(Stream.generate(() -> value).limit(size).toArray(BcValue[]::new), 0);
+    protected Value arrmakeFunctionStub(List<Value> args) {
+        return arrmake(args);
     }
 
     @Override
-    protected BcValue ArrmakeFunctionStub(List<BcValue> args) {
-        int size = args.get(0).asScalar().getValue();
-        BcValue value = args.get(1);
-        return new BcArrayPointer(Stream.generate(() -> value).limit(size).toArray(BcValue[]::new), 0);
+    protected Value ArrmakeFunctionStub(List<Value> args) {
+        return arrmake(args);
+    }
+
+    private Value arrmake(List<Value> args) {
+        int size = args.get(0).asInt().getValue();
+        Value value = args.get(1);
+        Value[] values = new Value[size];
+        Arrays.fill(values, value);
+        return new ArrayValue(values);
     }
 }

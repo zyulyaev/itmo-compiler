@@ -1,8 +1,5 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter;
 
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcScalar;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValue;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.value.BcValueType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgBinaryOperator;
 
 /**
@@ -10,17 +7,17 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgBinaryOperator;
  * @since 29.05.2017
  */
 class Operators {
-    static BcValue apply(BcValue left, BcValue right, AsgBinaryOperator operator) {
-        BcValueType leftType = left.getType();
-        BcValueType rightType = right.getType();
-        if (leftType == BcValueType.SCALAR && rightType == BcValueType.SCALAR) {
-            return applyScalar(left.asScalar(), right.asScalar(), operator);
+    static Value apply(Value left, Value right, AsgBinaryOperator operator) {
+        ValueType leftType = left.getType();
+        ValueType rightType = right.getType();
+        if (leftType == ValueType.INT && rightType == ValueType.INT) {
+            return applyScalar(left.asInt(), right.asInt(), operator);
         } else {
             throw new UnsupportedOperationException("Operations on " + leftType + " and " + rightType + " are not supported");
         }
     }
 
-    private static BcValue applyScalar(BcScalar left, BcScalar right, AsgBinaryOperator operator) {
+    private static Value applyScalar(IntValue left, IntValue right, AsgBinaryOperator operator) {
         int lValue = left.getValue();
         int rValue = right.getValue();
         switch (operator) {
@@ -40,16 +37,15 @@ class Operators {
 
         case AND: return boolValue(lValue != 0 && rValue != 0);
         case OR: return boolValue(lValue != 0 || rValue != 0);
-        case WAT: return boolValue(lValue != 0 || rValue != 0);
         }
         throw new UnsupportedOperationException("Operator " + operator + " is not supported on scalars");
     }
 
-    private static BcScalar intValue(int value) {
-        return new BcScalar(value);
+    private static IntValue intValue(int value) {
+        return new IntValue(value);
     }
 
-    private static BcScalar boolValue(boolean value) {
-        return new BcScalar(value ? 1 : 0);
+    private static IntValue boolValue(boolean value) {
+        return new IntValue(value ? 1 : 0);
     }
 }

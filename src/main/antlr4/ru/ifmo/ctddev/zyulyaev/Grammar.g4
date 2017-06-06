@@ -82,7 +82,7 @@ expression
     : left=expression op=('*'|'/'|'%') right=expression                     # binExpr
     | left=expression op=('+'|'-') right=expression                         # binExpr
     | left=expression op=('<'|'>'|'>='|'<='|'=='|'!=') right=expression     # binExpr
-    | left=expression op=('&&'|'||') right=expression                       # binExpr
+    | left=expression op='&&' right=expression                              # binExpr
     | left=expression op='!!' right=expression                              # binExpr
     | '[' arguments ']'                                                     # arrayExpr
     | dataExpression                                                        # dataExpr

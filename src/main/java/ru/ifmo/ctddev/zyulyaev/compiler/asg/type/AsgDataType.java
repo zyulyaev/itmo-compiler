@@ -53,6 +53,7 @@ public class AsgDataType implements AsgType {
 
     @Data
     public static class Field {
+        private final AsgDataType parent;
         private final String name;
         private final AsgType type;
     }

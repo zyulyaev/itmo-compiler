@@ -1,55 +1,35 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunctionDefinition;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunctionDefinition;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethodDefinition;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcNullaryInstructions;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPush;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgPredefinedType;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcReturn;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcMethodDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcNoneValue;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * @author zyulyaev
  * @since 28.05.2017
  */
 public class BcProgramTranslator {
-    private final Map<BcFunction, AsgExternalFunction> externalFunctions = new HashMap<>();
-    private final Map<AsgFunction, BcFunction> functionMap = new HashMap<>();
     private final AsgProgram program;
 
     private BcProgramTranslator(AsgProgram program) {
         this.program = program;
-        for (Map.Entry<AsgFunction, AsgExternalFunction> entry : program.getExternalFunctions().entrySet()) {
-            AsgFunction asgFunction = entry.getKey();
-            BcFunction bcFunction = new BcFunction(
-                asgFunction.getName(),
-                asgFunction.getParameterTypes().stream()
-                    .map(param -> new BcVariable(null)) // todo
-                    .collect(Collectors.toList())
-            );
-            externalFunctions.put(bcFunction, entry.getValue());
-            functionMap.put(asgFunction, bcFunction);
-        }
-        for (AsgFunctionDefinition definition : program.getFunctionDefinitions()) {
-            List<BcVariable> parameters = definition.getFunction().getParameterTypes().stream()
-                .map(var -> new BcVariable(null)) // todo
-                .collect(Collectors.toList());
-            BcFunction function = new BcFunction(definition.getFunction().getName(), parameters);
-            functionMap.put(definition.getFunction(), function);
-        }
     }
 
     public static BcProgram translate(AsgProgram program) {
@@ -57,41 +37,51 @@ public class BcProgramTranslator {
     }
 
     private BcProgram translate() {
-        Map<BcFunction, BcFunctionDefinition> definitionMap = new HashMap<>();
-        for (AsgFunctionDefinition definition : program.getFunctionDefinitions()) {
-            BcFunctionDefinition translated = translate(definition);
-            definitionMap.put(translated.getFunction(), translated);
-        }
+        List<BcFunctionDefinition> functions = program.getFunctionDefinitions().stream()
+            .map(this::translate)
+            .collect(Collectors.toList());
+        List<BcMethodDefinition> methods = program.getImplDefinitions().stream()
+            .flatMap(impl -> impl.getDefinitions().stream()
+                .map(def -> translate(impl.getDataType(), def)))
+            .collect(Collectors.toList());
+        AsgFunction mainFunction = new AsgFunction("main", Collections.emptyList(), AsgPredefinedType.NONE);
         BcFunctionDefinition main =
-            translate(new BcFunction("main", Collections.emptyList()), Collections.emptyMap(), program.getMain());
-        return new BcProgram(definitionMap, externalFunctions, main);
+            translate(new AsgFunctionDefinition(mainFunction, Collections.emptyList(), program.getMain()));
+        return new BcProgram(
+            program.getDataDefinitions(),
+            program.getClassDefinitions(),
+            functions,
+            methods,
+            program.getExternalFunctions(),
+            main
+        );
     }
 
     private BcFunctionDefinition translate(AsgFunctionDefinition definition) {
-        AsgFunction asgFunction = definition.getFunction();
-        BcFunction bcFunction = functionMap.get(asgFunction);
-        Map<AsgVariable, BcVariable> parameters = IntStream.range(0, asgFunction.getParameterTypes().size()).boxed()
-            .collect(Collectors.toMap(
-                i -> definition.getParameters().get(i),
-                i -> bcFunction.getParameters().get(i)
-            ));
-         return translate(bcFunction, parameters, definition.getBody());
+        AsgFunction function = definition.getFunction();
+        List<AsgVariable> parameters = definition.getParameters();
+        BcBuilder builder = new BcBuilder(new HashSet<>(parameters));
+        try (BcTranslator translator = new BcTranslator(builder)) {
+            definition.getBody().accept(translator);
+            // in case return not called, return none
+            builder.write(new BcReturn(BcNoneValue.INSTANCE));
+        }
+        List<AsgVariable> localVariables = new ArrayList<>(builder.getLocalVariables());
+        return new BcFunctionDefinition(function, parameters, localVariables, builder.getLines());
     }
 
-    private BcFunctionDefinition translate(BcFunction function, Map<AsgVariable, BcVariable> parameter,
-        AsgStatement body)
-    {
-        BcLabel returnLabel = new BcLabel(function.getName() + "_cleanup");
-        BcFunctionContext functionContext = new BcFunctionContext(functionMap, parameter, returnLabel);
-        BcContext functionRootContext = new BcContext(functionContext);
-        BcOutput output = new BcOutput();
-        try (BcTranslator translator = new BcTranslator(functionRootContext, output)) {
-            body.accept(translator);
-            // in case return not called, return 0
-            output.write(new BcPush(0));
-            output.write(returnLabel);
+    private BcMethodDefinition translate(AsgDataType dataType, AsgMethodDefinition definition) {
+        AsgMethod method = definition.getMethod();
+        List<AsgVariable> parameters = definition.getParameters();
+        Set<AsgVariable> predefined = new HashSet<>(parameters);
+        predefined.add(definition.getThisValue());
+        BcBuilder builder = new BcBuilder(predefined);
+        try (BcTranslator translator = new BcTranslator(builder)) {
+            definition.getBody().accept(translator);
+            // in case return not called, return none
+            builder.write(new BcReturn(BcNoneValue.INSTANCE));
         }
-        output.write(BcNullaryInstructions.RETURN);
-        return new BcFunctionDefinition(function, functionContext.getLocalVariables(), output.getLines());
+        List<AsgVariable> localVariables = new ArrayList<>(builder.getLocalVariables());
+        return new BcMethodDefinition(dataType, method, definition.getThisValue(), parameters, localVariables, builder.getLines());
     }
 }

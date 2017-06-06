@@ -7,8 +7,6 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt;
 public interface AsgStatementVisitor<T> {
     T visit(AsgAssignment assignment);
 
-    T visit(AsgVariableAssignment assignment);
-
     T visit(AsgIfStatement ifStatement);
 
     T visit(AsgStatementList statementList);

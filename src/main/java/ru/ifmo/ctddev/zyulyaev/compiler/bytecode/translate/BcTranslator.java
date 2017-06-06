@@ -1,13 +1,14 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate;
 
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgArrayExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgBinaryExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgCastExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgDataExpression;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpressionVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgFunctionCallExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgIndexExpression;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpressionVisitor;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLiteralExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgMemberAccessExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgMethodCallExpression;
@@ -18,91 +19,95 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgForStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgIfStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgRepeatStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgReturnStatement;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementList;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatementVisitor;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgVariableAssignment;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgWhileStatement;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcArrayInit;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcBinOp;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcCall;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcCast;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcDataInit;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcIndexLoad;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcIndexStore;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcInstruction;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcJump;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcNullaryInstructions;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPush;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcPushAddress;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcJumpIfZero;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcLoad;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcMemberLoad;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcMemberStore;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcMethodCall;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcReturn;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStore;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStringInit;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcUnset;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcImmediateValue;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcNoneValue;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcRegister;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcValue;
 
 import java.io.Closeable;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author zyulyaev
  * @since 28.05.2017
  */
-public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVisitor<Void>, Closeable {
-    private final BcContext context;
-    private final BcOutput output;
+class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVisitor<BcValue>, Closeable {
+    private final BcBuilder builder;
 
-    public BcTranslator(BcContext context, BcOutput output) {
-        this.context = context;
-        this.output = output;
-    }
-
-    private BcTranslator createChild() {
-        return new BcTranslator(new BcContext(context), output);
-    }
-
-    private void translateNested(AsgExpression expression) {
-        try (BcTranslator child = createChild()) {
-            expression.accept(child);
-        }
-    }
-
-    private void translateNested(AsgStatement statement) {
-        try (BcTranslator child = createChild()) {
-            statement.accept(child);
-        }
+    BcTranslator(BcBuilder builder) {
+        this.builder = builder;
     }
 
     // STATEMENTS
     @Override
     public Void visit(AsgAssignment assignment) {
-        translateNested(assignment.getLeftValue());
-        try (BcTranslator child = createChild()) {
-            assignment.getExpression().accept(child);
-            output.write(BcNullaryInstructions.STORE);
-        }
-        return null;
-    }
+        BcValue value = assignment.getExpression().accept(this);
+        BcInstruction instruction = assignment.getLeftValue().accept(new AsgLeftValueExpressionVisitor<BcInstruction>()
+        {
+            @Override
+            public BcInstruction visit(AsgIndexExpression indexExpression) {
+                BcRegister array = (BcRegister) indexExpression.getArray().accept(BcTranslator.this);
+                BcValue index = indexExpression.getIndex().accept(BcTranslator.this);
+                return new BcIndexStore(array, index, value);
+            }
 
-    @Override
-    public Void visit(AsgVariableAssignment assignment) {
-        output.write(new BcPushAddress(context.getVariable(assignment.getVariable())));
-        try (BcTranslator child = createChild()) {
-            assignment.getValue().accept(child);
-            output.write(BcNullaryInstructions.STORE);
-        }
+            @Override
+            public BcInstruction visit(AsgMemberAccessExpression memberAccessExpression) {
+                BcRegister object = (BcRegister) memberAccessExpression.getObject().accept(BcTranslator.this);
+                AsgDataType.Field field = memberAccessExpression.getField();
+                return new BcMemberStore(object, field, value);
+            }
+
+            @Override
+            public BcInstruction visit(AsgVariableExpression variableExpression) {
+                AsgVariable variable = variableExpression.getVariable();
+                builder.useVariable(variable);
+                return new BcStore(variable, value);
+            }
+        });
+        builder.write(instruction);
         return null;
     }
 
     @Override
     public Void visit(AsgIfStatement ifStatement) {
-        translateNested(ifStatement.getCondition());
-        BcLabel elseBranch = context.reserveLabel("else");
-        output.write(new BcJump(BcJump.Condition.IF_ZERO, elseBranch));
-        translateNested(ifStatement.getPositive());
-
+        BcValue condition = ifStatement.getCondition().accept(this);
+        BcLabel elseBranch = builder.reserveLabel("else");
+        builder.write(new BcJumpIfZero(condition, elseBranch));
+        ifStatement.getPositive().accept(this);
         if (ifStatement.getNegative() != null) {
-            BcLabel continueBranch = context.reserveLabel("cont");
-            output.write(new BcJump(BcJump.Condition.ALWAYS, continueBranch));
-            output.write(elseBranch);
-            translateNested(ifStatement.getNegative());
-            output.write(continueBranch);
+            BcLabel continueBranch = builder.reserveLabel("cont");
+            builder.write(new BcJump(continueBranch));
+            builder.write(elseBranch);
+            ifStatement.getNegative().accept(this);
+            builder.write(continueBranch);
         } else {
-            output.write(elseBranch);
+            builder.write(elseBranch);
         }
 
         return null;
@@ -116,152 +121,145 @@ public class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVis
 
     @Override
     public Void visit(AsgForStatement forStatement) {
-        try (BcTranslator outerChild = createChild()) {
-            forStatement.getInitialization().accept(outerChild);
-            BcLabel check = context.reserveLabel("check");
-            output.write(check);
-            forStatement.getTermination().accept(outerChild);
-            BcLabel termination = context.reserveLabel("term");
-            output.write(new BcJump(BcJump.Condition.IF_ZERO, termination));
-            outerChild.translateNested(forStatement.getBody());
-            forStatement.getIncrement().accept(outerChild);
-            output.write(new BcJump(BcJump.Condition.ALWAYS, check));
-            output.write(termination);
-        }
+        BcLabel check = builder.reserveLabel("check");
+        BcLabel termination = builder.reserveLabel("term");
+        forStatement.getInitialization().accept(this);
+        builder.write(check);
+        builder.write(new BcJumpIfZero(forStatement.getTermination().accept(this), termination));
+        forStatement.getBody().accept(this);
+        forStatement.getIncrement().accept(this);
+        builder.write(new BcJump(check));
+        builder.write(termination);
         return null;
     }
 
     @Override
     public Void visit(AsgWhileStatement whileStatement) {
-        BcLabel whileStart = context.reserveLabel("while");
-        output.write(whileStart);
-        translateNested(whileStatement.getCondition());
-        BcLabel termination = context.reserveLabel("term");
-        output.write(new BcJump(BcJump.Condition.IF_ZERO, termination));
-        translateNested(whileStatement.getBody());
-        output.write(new BcJump(BcJump.Condition.ALWAYS, whileStart));
-        output.write(termination);
+        BcLabel whileStart = builder.reserveLabel("while");
+        BcLabel termination = builder.reserveLabel("term");
+        builder.write(whileStart);
+        BcValue condition = whileStatement.getCondition().accept(this);
+        builder.write(new BcJumpIfZero(condition, termination));
+        whileStatement.getBody().accept(this);
+        builder.write(new BcJump(whileStart));
+        builder.write(termination);
         return null;
     }
 
     @Override
     public Void visit(AsgRepeatStatement repeatStatement) {
-        BcLabel repeatStart = context.reserveLabel("repeat");
-        output.write(repeatStart);
-        try (BcTranslator child = createChild()) {
-            repeatStatement.getBody().accept(child);
-            repeatStatement.getCondition().accept(child);
-        }
-        output.write(new BcJump(BcJump.Condition.IF_ZERO, repeatStart));
+        BcLabel repeatStart = builder.reserveLabel("repeat");
+        builder.write(repeatStart);
+        repeatStatement.getBody().accept(this);
+        BcValue condition = repeatStatement.getCondition().accept(this);
+        builder.write(new BcJumpIfZero(condition, repeatStart));
         return null;
     }
 
     @Override
     public Void visit(AsgExpressionStatement expressionStatement) {
-        translateNested(expressionStatement.getExpression());
-        output.write(BcNullaryInstructions.POP);
+        expressionStatement.getExpression().accept(this);
         return null;
     }
 
     @Override
     public Void visit(AsgReturnStatement returnStatement) {
-        translateNested(returnStatement.getValue());
-        output.write(new BcJump(BcJump.Condition.ALWAYS, context.getReturnLabel()));
+        BcValue value = returnStatement.getValue().accept(this);
+        builder.write(new BcReturn(value));
         return null;
     }
 
     // EXPRESSIONS
 
     @Override
-    public Void visit(AsgLiteralExpression<?> literal) {
+    public BcValue visit(AsgLiteralExpression<?> literal) {
         switch (literal.getType()) {
         case INT:
-            output.write(new BcPush((Integer) literal.getValue()));
-            return null;
+            return new BcImmediateValue((Integer) literal.getValue());
         case NONE:
-            output.write(new BcPush(0));
-            return null;
+            return BcNoneValue.INSTANCE;
         case STRING:
-            BcVariable tmp = context.reserveVariable();
-            output.write(new BcStringInit(tmp, (String) literal.getValue()));
-            output.write(new BcPushAddress(tmp));
-            output.write(BcNullaryInstructions.LOAD);
-            return null;
+            return builder.write(new BcStringInit((String) literal.getValue()));
         }
         throw new UnsupportedOperationException("Literal type not supported: " + literal.getType());
     }
 
     @Override
-    public Void visit(AsgBinaryExpression binaryExpression) {
-        binaryExpression.getLeft().accept(this);
-        binaryExpression.getRight().accept(this);
-        output.write(new BcBinOp(binaryExpression.getOperator()));
-        return null;
+    public BcValue visit(AsgBinaryExpression binaryExpression) {
+        BcValue left = binaryExpression.getLeft().accept(this);
+        BcValue right = binaryExpression.getRight().accept(this);
+        return builder.write(new BcBinOp(binaryExpression.getOperator(), left, right));
     }
 
     @Override
-    public Void visit(AsgFunctionCallExpression functionCall) {
-        List<AsgExpression> args = functionCall.getArguments();
-        int argsCount = args.size();
-        for (int i = argsCount - 1; i >= 0; i--) {
-            args.get(i).accept(this);
-        }
-        output.write(new BcCall(context.getFunction(functionCall.getFunction())));
-        return null;
+    public BcValue visit(AsgFunctionCallExpression functionCall) {
+        List<BcValue> arguments = functionCall.getArguments().stream()
+            .map(arg -> arg.accept(this))
+            .collect(Collectors.toList());
+        return builder.write(new BcCall(functionCall.getFunction(), arguments));
     }
 
     @Override
-    public Void visit(AsgMethodCallExpression methodCall) {
-        // todo
-        throw new UnsupportedOperationException();
+    public BcValue visit(AsgMethodCallExpression methodCall) {
+        BcValue object = methodCall.getObject().accept(this);
+        List<BcValue> arguments = methodCall.getArguments().stream()
+            .map(arg -> arg.accept(this))
+            .collect(Collectors.toList());
+        return builder.write(new BcMethodCall((BcRegister) object, methodCall.getMethod(), arguments));
     }
 
     @Override
-    public Void visit(AsgArrayExpression arrayExpression) {
-        List<AsgExpression> values = arrayExpression.getValues();
-        for (int i = values.size() - 1; i >= 0; i--) {
-            values.get(i).accept(this);
-        }
-        BcVariable tmp = context.reserveVariable();
-        output.write(new BcArrayInit(tmp, values.size()));
-        output.write(new BcPushAddress(tmp));
-        output.write(BcNullaryInstructions.LOAD);
-        return null;
+    public BcValue visit(AsgArrayExpression arrayExpression) {
+        List<BcValue> values = arrayExpression.getValues().stream()
+            .map(expr -> expr.accept(this))
+            .collect(Collectors.toList());
+        return builder.write(new BcArrayInit(values, arrayExpression.getResultType()));
     }
 
     @Override
-    public Void visit(AsgIndexExpression indexExpression) {
-        indexExpression.getArray().accept(this);
-        indexExpression.getIndex().accept(this);
-        output.write(BcNullaryInstructions.LOAD);
-        return null;
+    public BcValue visit(AsgIndexExpression indexExpression) {
+        return builder.write(new BcIndexLoad(
+            (BcRegister) indexExpression.getArray().accept(this),
+            indexExpression.getIndex().accept(this)
+        ));
     }
 
     @Override
-    public Void visit(AsgMemberAccessExpression memberAccessExpression) {
-        // todo
-        throw new UnsupportedOperationException();
+    public BcValue visit(AsgMemberAccessExpression memberAccessExpression) {
+        return builder.write(new BcMemberLoad(
+            (BcRegister) memberAccessExpression.getObject().accept(this),
+            memberAccessExpression.getField()
+        ));
     }
 
     @Override
-    public Void visit(AsgVariableExpression variableExpression) {
-        BcVariable variable = context.getVariable(variableExpression.getVariable());
-        output.write(new BcPushAddress(variable));
-        return null;
+    public BcValue visit(AsgVariableExpression variableExpression) {
+        AsgVariable variable = variableExpression.getVariable();
+        builder.useVariable(variable);
+        return builder.write(new BcLoad(variable));
     }
 
     @Override
-    public Void visit(AsgCastExpression castExpression) {
-        throw new UnsupportedOperationException();
+    public BcValue visit(AsgCastExpression castExpression) {
+        return builder.write(new BcCast(
+            castExpression.getExpression().accept(this),
+            castExpression.getTarget()
+        ));
     }
 
     @Override
-    public Void visit(AsgDataExpression dataExpression) {
-        throw new UnsupportedOperationException();
+    public BcValue visit(AsgDataExpression dataExpression) {
+        return builder.write(new BcDataInit(
+            dataExpression.getType(),
+            dataExpression.getValues().entrySet().stream().collect(Collectors.toMap(
+                Map.Entry::getKey,
+                entry -> entry.getValue().accept(this)
+            ))
+        ));
     }
 
     @Override
     public void close() {
-        context.cleanup().forEach(var -> output.write(new BcUnset(var)));
+        builder.getLocalVariables().forEach(var -> builder.write(new BcUnset(var)));
     }
 }

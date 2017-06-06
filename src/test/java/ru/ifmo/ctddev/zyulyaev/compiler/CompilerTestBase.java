@@ -57,10 +57,10 @@ public abstract class CompilerTestBase {
         testInMode(CompilerRunner.Mode.INTERPRETER);
     }
 
-//    @Test
-//    public void testStackMachine() throws Exception {
-//        testInMode(CompilerRunner.Mode.STACK_MACHINE);
-//    }
+    @Test
+    public void testStackMachine() throws Exception {
+        testInMode(CompilerRunner.Mode.STACK_MACHINE);
+    }
 //
 //    @Test
 //    public void testCompiler() throws Exception {

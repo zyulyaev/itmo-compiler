@@ -1,17 +1,19 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction;
 
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgPredefinedType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcValue;
 
 /**
  * @author zyulyaev
- * @since 05.06.2017
+ * @since 28.05.2017
  */
 @Data
-public class BcUnset implements BcInstruction {
-    private final AsgVariable variable;
+public class BcJumpIfZero implements BcInstruction {
+    private final BcValue condition;
+    private final BcLabel label;
 
     @Override
     public AsgType getResultType() {

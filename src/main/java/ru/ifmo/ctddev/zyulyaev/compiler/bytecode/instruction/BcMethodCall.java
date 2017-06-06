@@ -1,24 +1,26 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction;
 
 import lombok.Data;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgArrayType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcRegister;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcValue;
 
 import java.util.List;
 
 /**
  * @author zyulyaev
- * @since 28.05.2017
+ * @since 05.06.2017
  */
 @Data
-public class BcArrayInit implements BcInstruction {
-    private final List<BcValue> values;
-    private final AsgArrayType arrayType;
+public class BcMethodCall implements BcInstruction {
+    private final BcRegister object;
+    private final AsgMethod method;
+    private final List<BcValue> arguments;
 
     @Override
     public AsgType getResultType() {
-        return arrayType;
+        return method.getReturnType();
     }
 
     @Override
