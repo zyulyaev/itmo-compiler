@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -15,9 +16,9 @@ import java.util.Objects;
 @Getter
 @Setter
 public class AsgDataType implements AsgType {
+    private final List<AsgClassType> implementedClasses = new ArrayList<>();
     private final String name;
     private List<Field> fields;
-    private List<AsgClassType> implementedClasses;
 
     public AsgDataType(String name) {
         this.name = name;
@@ -37,8 +38,8 @@ public class AsgDataType implements AsgType {
     }
 
     @Override
-    public boolean isPrimitive() {
-        return false;
+    public boolean isData() {
+        return true;
     }
 
     @Override

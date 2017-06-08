@@ -13,6 +13,10 @@ public enum AsmRegister implements AsmOperand {
 
     /** Counter */
     ECX,
+    CX,
+    CL,
+    CH,
+
     /** Data */
     EDX,
     /** Base */
@@ -28,5 +32,10 @@ public enum AsmRegister implements AsmOperand {
 
     public String print() {
         return "%" + this.name().toLowerCase();
+    }
+
+    @Override
+    public boolean isRegister() {
+        return true;
     }
 }

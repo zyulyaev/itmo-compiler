@@ -10,7 +10,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmOperand;
 public enum AsmBinary {
     ADD("addl"),
     SUB("subl"),
-    MUL("imull"),
+    IMUL("imull"),
 
     XOR("xorl"),
     OR("orl"),
@@ -19,7 +19,7 @@ public enum AsmBinary {
 
     MOV("movl"),
     MOVB("movb"),
-    LEA("lea"),
+    LEA("leal"),
     CMP("cmp"),
     ENTER("enter");
 

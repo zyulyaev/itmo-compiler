@@ -9,6 +9,8 @@ import ru.ifmo.ctddev.zyulyaev.GrammarLexer;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgProgram;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.build.AsgBuilder;
+import ru.ifmo.ctddev.zyulyaev.compiler.asm.AsmTranslator;
+import ru.ifmo.ctddev.zyulyaev.compiler.asm.line.AsmLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.BcInterpreter;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.BcRuntime;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
@@ -16,7 +18,9 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate.BcProgramTranslator;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.Interpreter;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.InterpreterRuntime;
 
+import java.io.BufferedWriter;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -49,18 +53,21 @@ public class CompilerRunner {
                 return 0;
             }
             case COMPILER: {
-                throw new UnsupportedOperationException();
-//                BcProgram bcProgram = BcProgramTranslator.translate(program);
-//                try (BufferedWriter writer = Files.newBufferedWriter(fileSet.getAsmOutput())) {
-//                    for (AsmLine line : new AsmTranslator().translate(bcProgram)) {
-//                        writer.write(line.print());
-//                        writer.newLine();
-//                    }
+                BcProgram bcProgram = BcProgramTranslator.translate(program);
+//                BcPrinter.print(bcProgram, System.out);
+//                for (AsmLine line : new AsmTranslator().translate(bcProgram)) {
+//                    System.out.println(line.print());
 //                }
-//                ProcessBuilder gcc = new ProcessBuilder("gcc", "-m32", "-g", "-o",
-//                    fileSet.getOutput().toString(), runtime + "/runtime.o", fileSet.getAsmOutput().toString())
-//                    .inheritIO();
-//                return gcc.start().waitFor();
+                try (BufferedWriter writer = Files.newBufferedWriter(fileSet.getAsmOutput())) {
+                    for (AsmLine line : new AsmTranslator().translate(bcProgram)) {
+                        writer.write(line.print());
+                        writer.newLine();
+                    }
+                }
+                ProcessBuilder gcc = new ProcessBuilder("gcc", "-m32", "-g", "-o",
+                    fileSet.getOutput().toString(), runtime + "/runtime.o", fileSet.getAsmOutput().toString())
+                    .inheritIO();
+                return gcc.start().waitFor();
             }
         }
         return 1;

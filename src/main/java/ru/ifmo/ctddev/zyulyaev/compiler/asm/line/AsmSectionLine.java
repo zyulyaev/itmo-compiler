@@ -5,7 +5,8 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asm.line;
  * @since 29.05.2017
  */
 public enum AsmSectionLine implements AsmLine {
-    TEXT;
+    TEXT,
+    DATA;
 
     @Override
     public String print() {

@@ -3,6 +3,7 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.build;
 import ru.ifmo.ctddev.zyulyaev.GrammarBaseVisitor;
 import ru.ifmo.ctddev.zyulyaev.GrammarParser;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgCastExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgLeftValueExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgVariableExpression;
@@ -97,7 +98,11 @@ class StatementParser extends GrammarBaseVisitor<AsgStatement> {
 
     @Override
     public AsgStatement visitReturnStatement(GrammarParser.ReturnStatementContext ctx) {
-        return new AsgReturnStatement(ctx.value.accept(context.asExpressionParser()));
+        AsgExpression returnValue = ctx.value.accept(context.asExpressionParser());
+        if (!returnValue.getResultType().equals(context.getReturnType())) {
+            returnValue = new AsgCastExpression(returnValue, context.getReturnType(), false);
+        }
+        return new AsgReturnStatement(context.getReturnType(), returnValue);
     }
 
     @Override

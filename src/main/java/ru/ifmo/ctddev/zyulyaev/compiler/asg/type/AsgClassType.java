@@ -27,8 +27,8 @@ public class AsgClassType implements AsgType {
     }
 
     @Override
-    public boolean isPrimitive() {
-        return false;
+    public boolean isClass() {
+        return true;
     }
 
     @Override

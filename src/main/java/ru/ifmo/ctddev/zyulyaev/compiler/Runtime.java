@@ -1,9 +1,10 @@
 package ru.ifmo.ctddev.zyulyaev.compiler;
 
 import com.google.common.collect.ImmutableMap;
-import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgArrayType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgArrayType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgPredefinedType;
+import ru.ifmo.ctddev.zyulyaev.compiler.std.ArrlenFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.std.BoxedArrmakeFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.std.SimpleExternalFunction;
 
@@ -39,8 +40,7 @@ public abstract class Runtime<A, R> {
     public static final AsgExternalFunction strmakeFunction = new SimpleExternalFunction("strmake",
         AsgPredefinedType.STRING, AsgPredefinedType.INT, AsgPredefinedType.INT);
 
-    public static final AsgExternalFunction arrlenFunction = new SimpleExternalFunction("arrlen",
-        AsgPredefinedType.INT, new AsgArrayType(AsgPredefinedType.ANY));
+    public static final AsgExternalFunction arrlenFunction = new ArrlenFunction();
     public static final AsgExternalFunction arrmakeFunction = new SimpleExternalFunction("arrmake",
         new AsgArrayType(AsgPredefinedType.INT), AsgPredefinedType.INT, AsgPredefinedType.INT);
     public static final AsgExternalFunction ArrmakeFunction = new BoxedArrmakeFunction();

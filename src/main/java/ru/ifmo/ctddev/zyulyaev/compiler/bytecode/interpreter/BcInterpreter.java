@@ -25,7 +25,6 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcMethodCall;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcReturn;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStore;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStringInit;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcUnset;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcMethodDefinition;
@@ -261,12 +260,6 @@ public class BcInterpreter {
         @Override
         public Value visit(BcCast cast) {
             return cast.getValue().accept(this);
-        }
-
-        @Override
-        public Value visit(BcUnset unset) {
-            // todo
-            return null;
         }
 
         @Override

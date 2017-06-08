@@ -40,14 +40,12 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcMethodCall;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcReturn;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStore;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStringInit;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcUnset;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcLabel;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcImmediateValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcNoneValue;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcRegister;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcValue;
 
-import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -56,7 +54,7 @@ import java.util.stream.Collectors;
  * @author zyulyaev
  * @since 28.05.2017
  */
-class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVisitor<BcValue>, Closeable {
+class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVisitor<BcValue> {
     private final BcBuilder builder;
 
     BcTranslator(BcBuilder builder) {
@@ -256,10 +254,5 @@ class BcTranslator implements AsgStatementVisitor<Void>, AsgExpressionVisitor<Bc
                 entry -> entry.getValue().accept(this)
             ))
         ));
-    }
-
-    @Override
-    public void close() {
-        builder.getLocalVariables().forEach(var -> builder.write(new BcUnset(var)));
     }
 }

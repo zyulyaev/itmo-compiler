@@ -14,4 +14,9 @@ public class AsmImmediate implements AsmOperand {
     public String print() {
         return "$" + value;
     }
+
+    @Override
+    public boolean isImmediate() {
+        return true;
+    }
 }

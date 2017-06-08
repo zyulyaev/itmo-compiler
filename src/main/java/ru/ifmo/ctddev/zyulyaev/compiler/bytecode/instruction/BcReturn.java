@@ -1,6 +1,7 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction;
 
 import lombok.Data;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgPredefinedType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.value.BcValue;
 
@@ -14,7 +15,7 @@ public class BcReturn implements BcInstruction {
 
     @Override
     public AsgType getResultType() {
-        return value.getType();
+        return AsgPredefinedType.NONE;
     }
 
     @Override

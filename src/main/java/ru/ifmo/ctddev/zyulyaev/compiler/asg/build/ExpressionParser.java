@@ -19,6 +19,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.expr.AsgVariableExpression;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -122,9 +123,7 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
     private void castArguments(List<AsgExpression> arguments, List<AsgType> parameterTypes) {
         for (int i = 0; i < arguments.size(); i++) {
             AsgType parameterType = parameterTypes.get(i);
-            if (!arguments.get(i).getResultType().equals(parameterType)) {
-                arguments.set(i, new AsgCastExpression(arguments.get(i), parameterType, false));
-            }
+            arguments.set(i, castIfNeeded(parameterType, arguments.get(i)));
         }
     }
 
@@ -156,11 +155,20 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
     @Override
     public AsgExpression visitDataExpr(GrammarParser.DataExprContext ctx) {
         AsgDataType dataType = (AsgDataType) context.resolveType(ctx.dataExpression().dataType.getText());
-        Map<AsgDataType.Field, AsgExpression> values = ctx.dataExpression().fieldExpression().stream()
-            .collect(Collectors.toMap(
-                field -> dataType.getField(field.name.getText()),
-                field -> field.value.accept(this)
-            ));
+        Map<AsgDataType.Field, AsgExpression> values = new HashMap<>();
+        for (GrammarParser.FieldExpressionContext fieldCtx : ctx.dataExpression().fieldExpression()) {
+            AsgDataType.Field field = dataType.getField(fieldCtx.name.getText());
+            AsgExpression value = castIfNeeded(field.getType(), fieldCtx.value.accept(this));
+            values.put(field, value);
+        }
         return new AsgDataExpression(dataType, values);
+    }
+
+    private static AsgExpression castIfNeeded(AsgType targetType, AsgExpression expression) {
+        if (!expression.getResultType().equals(targetType)) {
+            return new AsgCastExpression(expression, targetType, false);
+        } else {
+            return expression;
+        }
     }
 }

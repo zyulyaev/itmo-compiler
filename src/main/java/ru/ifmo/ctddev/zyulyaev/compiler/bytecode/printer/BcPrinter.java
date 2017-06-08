@@ -21,7 +21,6 @@ import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcMethodCall;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcReturn;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStore;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcStringInit;
-import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.instruction.BcUnset;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcFunctionDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcMethodDefinition;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
@@ -178,11 +177,6 @@ public class BcPrinter implements BcLineVisitor<String>, BcInstructionVisitor<St
     @Override
     public String visit(BcLoad load) {
         return "load @" + load.getVariable().getName();
-    }
-
-    @Override
-    public String visit(BcUnset unset) {
-        return "unset " + unset.getVariable().getName();
     }
 
     @Override

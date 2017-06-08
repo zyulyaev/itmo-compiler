@@ -13,6 +13,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgVariable;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.stmt.AsgStatement;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgClassType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgDataType;
+import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgPredefinedType;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
 import java.util.ArrayList;
@@ -76,6 +77,7 @@ public class AsgBuilder {
             dataDefinitions.stream().map(this::parseDataDeclaration).collect(Collectors.toList());
         List<AsgClassType> definedClasses =
             classDefinitions.stream().map(this::parseClassDeclaration).collect(Collectors.toList());
+        implDefinitions.forEach(this::parseImplDeclaration);
 
         dataDefinitions.forEach(this::parseDataDefinition);
         classDefinitions.forEach(this::parseClassDefinition);
@@ -85,14 +87,9 @@ public class AsgBuilder {
             functionDefinitions.stream().map(this::parseFunctionDefinition).collect(Collectors.toList());
 
         List<AsgImplDefinition> definedImplementations =
-            implDefinitions.stream().map(this::parseImplementation).collect(Collectors.toList());
+            implDefinitions.stream().map(this::parseImplDefinition).collect(Collectors.toList());
 
-        definedTypes.forEach(type -> type.setImplementedClasses(new ArrayList<>()));
-        for (AsgImplDefinition impl : definedImplementations) {
-            impl.getDataType().getImplementedClasses().add(impl.getClassType());
-        }
-
-        Context mainContext = new Context(environment);
+        Context mainContext = new Context(environment, AsgPredefinedType.NONE);
         AsgStatement mainBody = program.statements().accept(mainContext.asStatementParser());
 
         return new AsgProgram(
@@ -155,7 +152,7 @@ public class AsgBuilder {
             .map(param -> param.type().accept(environment.asTypeParser()))
             .collect(Collectors.toList());
         AsgFunction declaration = environment.getFunction(name, parameterTypes);
-        Context functionContext = new Context(environment);
+        Context functionContext = new Context(environment, declaration.getReturnType());
         List<AsgVariable> parameters = ctx.parameters().parameter().stream()
             .map(param -> functionContext.declareVariable(
                 param.id().getText(),
@@ -167,7 +164,13 @@ public class AsgBuilder {
         return new AsgFunctionDefinition(declaration, parameters, body);
     }
 
-    private AsgImplDefinition parseImplementation(GrammarParser.ImplDefinitionContext ctx) {
+    private void parseImplDeclaration(GrammarParser.ImplDefinitionContext ctx) {
+        AsgClassType classType = (AsgClassType) environment.getType(ctx.className.getText());
+        AsgDataType dataType = (AsgDataType) environment.getType(ctx.dataType.getText());
+        dataType.getImplementedClasses().add(classType);
+    }
+
+    private AsgImplDefinition parseImplDefinition(GrammarParser.ImplDefinitionContext ctx) {
         AsgClassType classType = (AsgClassType) environment.getType(ctx.className.getText());
         AsgDataType dataType = (AsgDataType) environment.getType(ctx.dataType.getText());
         List<AsgMethodDefinition> definitions = ctx.functionDefinition().stream()
@@ -181,7 +184,7 @@ public class AsgBuilder {
     {
         AsgMethod method = classType.getMethods().stream().filter(m -> m.getName().equals(ctx.name.getText()))
             .findFirst().orElseThrow(() -> new NoSuchElementException("Method " + ctx.name.getText() + " not found"));
-        Context methodContext = new Context(environment);
+        Context methodContext = new Context(environment, method.getReturnType());
         AsgVariable thisValue = methodContext.declareVariable("this", dataType, true);
         List<AsgVariable> parameters = ctx.parameters().parameter().stream()
             .map(param -> methodContext.declareVariable(

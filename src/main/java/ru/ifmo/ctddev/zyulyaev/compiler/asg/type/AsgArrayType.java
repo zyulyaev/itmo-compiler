@@ -11,8 +11,8 @@ public class AsgArrayType implements AsgType {
     private final AsgType compound;
 
     @Override
-    public boolean isPrimitive() {
-        return false;
+    public boolean isArray() {
+        return true;
     }
 
     @Override

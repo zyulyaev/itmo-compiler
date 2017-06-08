@@ -14,4 +14,13 @@ public class AsmSymbol implements AsmOperand {
     public String print() {
         return value;
     }
+
+    @Override
+    public boolean isSymbol() {
+        return true;
+    }
+
+    public AsmSymbol toAddress() {
+        return new AsmSymbol("$" + value);
+    }
 }

@@ -27,6 +27,10 @@ public class AsmPointer implements AsmOperand {
         this(base, 0, null, offset);
     }
 
+    public AsmPointer shift(int offset) {
+        return new AsmPointer(base, factor, spread, offset + this.offset);
+    }
+
     @Override
     public String print() {
         if (spread != null) {
@@ -36,11 +40,8 @@ public class AsmPointer implements AsmOperand {
         }
     }
 
-    private String formatInt(int value) {
-        if (value < 0) {
-            return Integer.toString(value);
-        } else {
-            return "+" + value;
-        }
+    @Override
+    public boolean isPointer() {
+        return true;
     }
 }

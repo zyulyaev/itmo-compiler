@@ -61,11 +61,9 @@ public class BcProgramTranslator {
         AsgFunction function = definition.getFunction();
         List<AsgVariable> parameters = definition.getParameters();
         BcBuilder builder = new BcBuilder(new HashSet<>(parameters));
-        try (BcTranslator translator = new BcTranslator(builder)) {
-            definition.getBody().accept(translator);
-            // in case return not called, return none
-            builder.write(new BcReturn(BcNoneValue.INSTANCE));
-        }
+        definition.getBody().accept(new BcTranslator(builder));
+        // in case return not called, return none
+        builder.write(new BcReturn(BcNoneValue.INSTANCE));
         List<AsgVariable> localVariables = new ArrayList<>(builder.getLocalVariables());
         return new BcFunctionDefinition(function, parameters, localVariables, builder.getLines());
     }
@@ -76,11 +74,9 @@ public class BcProgramTranslator {
         Set<AsgVariable> predefined = new HashSet<>(parameters);
         predefined.add(definition.getThisValue());
         BcBuilder builder = new BcBuilder(predefined);
-        try (BcTranslator translator = new BcTranslator(builder)) {
-            definition.getBody().accept(translator);
-            // in case return not called, return none
-            builder.write(new BcReturn(BcNoneValue.INSTANCE));
-        }
+        definition.getBody().accept(new BcTranslator(builder));
+        // in case return not called, return none
+        builder.write(new BcReturn(BcNoneValue.INSTANCE));
         List<AsgVariable> localVariables = new ArrayList<>(builder.getLocalVariables());
         return new BcMethodDefinition(dataType, method, definition.getThisValue(), parameters, localVariables, builder.getLines());
     }

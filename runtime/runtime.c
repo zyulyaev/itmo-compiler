@@ -2,6 +2,15 @@
 #include <string.h>
 #include <stdlib.h>
 
+typedef struct rc_array_header_t {
+    int ref_counter;
+    int length;
+} rc_array_header;
+
+typedef struct rc_header_t {
+    int ref_counter;
+} rc_header;
+
 void rc_write(int val) {
   printf("%d\n", val);
 }
@@ -13,79 +22,77 @@ int rc_read() {
   return val;
 }
 
-char* rc_strmake(int length, char c) {
-    char* buf = malloc(length + 1);
-    memset(buf, c, length);
-    buf[length] = 0;
-    return buf;
+static rc_header* _strmake(int length) {
+    int header_size = sizeof(rc_header);
+    rc_header* header = malloc(header_size + length + 1);
+    char* chars = (char*) &header[1];
+    chars[length] = 0;
+    return header;
 }
 
-char rc_strget(char* str, int index) {
-    return str[index];
+rc_header* rc_strmake(int length, char c) {
+    rc_header* header = _strmake(length);
+    memset(&header[1], c, length);
+    return header;
 }
 
-char* rc_strsub(char* str, int from, int length) {
-    char* buf = malloc(length + 1);
-    memcpy(buf, str + from, length);
-    buf[length] = 0;
-    return buf;
+rc_header* rc_strinit(int length, char* chars) {
+    rc_header* header = _strmake(length);
+    memcpy((char*) &header[1], chars, length);
+    return header;
 }
 
-char* rc_strcat(char* a, char* b) {
-    int aLen = strlen(a);
-    int bLen = strlen(b);
-    int tot = aLen + bLen;
-    char* res = malloc(tot + 1);
-    memcpy(res, a, aLen);
-    memcpy(res + aLen, b, bLen);
-    res[tot] = 0;
-    return res;
+char rc_strget(rc_header* header, int index) {
+    return ((char*) &header[1])[index];
 }
 
-int rc_strlen(char* str) {
-    return strlen(str);
+rc_header* rc_strsub(rc_header* header, int from, int length) {
+    char* chars = (char*) &header[1];
+    rc_header* result = _strmake(length);
+    memcpy(&result[1], chars + from, length);
+    return result;
 }
 
-char* rc_strdup(char* str) {
-    int length = strlen(str);
-    char* res = malloc(length + 1);
-    memcpy(res, str, length + 1);
-    return res;
+rc_header* rc_strcat(rc_header* a, rc_header* b) {
+    char* left = (char*) &a[1];
+    char* right = (char*) &b[1];
+    int leftLen = strlen(left);
+    int rightLen = strlen(right);
+    rc_header* result = _strmake(leftLen + rightLen);
+    char* chars = (char*) &result[1];
+    memcpy(chars, left, leftLen);
+    memcpy(chars + leftLen, right, rightLen);
+    return result;
 }
 
-void rc_strset(char* str, int idx, char value) {
-    str[idx] = value;
+int rc_strlen(rc_header* str) {
+    return strlen((char*) &str[1]);
 }
 
-int rc_strcmp(char* a, char* b) {
-    return strcmp(a, b);
+rc_header* rc_strdup(rc_header* str) {
+    int length = rc_strlen(str);
+    rc_header* result = _strmake(length);
+    memcpy(&result[1], &str[1], length);
+    return result;
 }
 
-typedef enum rc_type_t {
-    SCALAR_ARRAY,
-    POINTER_ARRAY,
-    STRING
-} rc_type;
+void rc_strset(rc_header* str, int idx, char value) {
+    char* chars = (char*) &str[1];
+    chars[idx] = value;
+}
 
-typedef struct rc_array_header_t {
-    rc_type type;
-    int length;
-} rc_array_header;
+int rc_strcmp(rc_header* a, rc_header* b) {
+    return strcmp((char*) &a[1], (char*) &b[1]);
+}
 
-typedef struct rc_str_header_t {
-    rc_type type;
-    int length;
-} rc_str_header;
-
-static rc_array_header* _arrcrt(int length, rc_type type) {
+static rc_array_header* _arrcrt(int length) {
     rc_array_header* header = malloc(length * 4 + sizeof(rc_array_header));
-    header->type = type;
     header->length = length;
     return header;
 }
 
-static rc_array_header* _arrmake(int length, int value, rc_type type) {
-    rc_array_header* header = _arrcrt(length, type);
+static rc_array_header* _arrmake(int length, int value) {
+    rc_array_header* header = _arrcrt(length);
     int* data = (int*) &header[1];
     for (int i = 0; i < length; i++) {
         data[i] = value;
@@ -94,23 +101,19 @@ static rc_array_header* _arrmake(int length, int value, rc_type type) {
 }
 
 void* rc_arrmake(int length, int value) {
-    return _arrmake(length, value, SCALAR_ARRAY);
+    return _arrmake(length, value);
 }
 
 void* rc_Arrmake(int length, int value) {
-    return _arrmake(length, value, POINTER_ARRAY);
+    return _arrmake(length, value);
 }
 
 void* rc_arrinit(void* src, int length) {
-    rc_array_header* header = _arrcrt(length, SCALAR_ARRAY);
+    rc_array_header* header = _arrcrt(length);
     memcpy(&header[1], src, length * 4);
     return header;
 }
 
 int rc_arrlen(rc_array_header* ptr) {
     return ptr->length;
-}
-
-void* rc_arrget(rc_array_header* ptr, int index) {
-    return &((int*) &ptr[1])[index];
 }

@@ -6,7 +6,6 @@ package ru.ifmo.ctddev.zyulyaev.compiler.asg.type;
  */
 public enum AsgPredefinedType implements AsgType {
     INT("Int", true),
-    ANY("Any", false),
     STRING("String", false),
     NONE("None", false);
 
@@ -29,7 +28,7 @@ public enum AsgPredefinedType implements AsgType {
 
     @Override
     public boolean isAssignableFrom(AsgType type) {
-        return type == this || (this == ANY || type == NONE) && !this.isPrimitive();
+        return type == this || type == NONE && !this.isPrimitive();
     }
 
     @Override

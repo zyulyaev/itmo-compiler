@@ -14,7 +14,7 @@ public class AsgAssignment implements AsgStatement {
     private final AsgExpression expression;
 
     public AsgAssignment(AsgLeftValueExpression leftValue, AsgExpression expression) {
-        if (!leftValue.getResultType().isAssignableFrom(expression.getResultType())) {
+        if (!leftValue.getResultType().equals(expression.getResultType())) {
             throw new IllegalArgumentException("Cannot assign " + leftValue.getResultType() +
                 " from " + expression.getResultType());
         }

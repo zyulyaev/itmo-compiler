@@ -36,6 +36,4 @@ public interface BcInstructionVisitor<T> {
     T visit(BcReturn ret);
 
     T visit(BcCast cast);
-
-    T visit(BcUnset unset);
 }

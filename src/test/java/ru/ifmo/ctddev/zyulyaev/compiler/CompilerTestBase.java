@@ -61,24 +61,24 @@ public abstract class CompilerTestBase {
     public void testStackMachine() throws Exception {
         testInMode(CompilerRunner.Mode.STACK_MACHINE);
     }
-//
-//    @Test
-//    public void testCompiler() throws Exception {
-//        CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER, "runtime");
-//
-//        Path asm = tmp.newFile(set.getName() + ".s").toPath();
-//        Path output = tmp.newFile(set.getName()).toPath();
-//        Path log = tmp.newFile(set.getName() + ".log").toPath();
-//
-//        Assert.assertEquals("Compile " + set.getCode(), 0,
-//            runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output), null, null));
-//        Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
-//            .redirectInput(set.getInput().toFile())
-//            .redirectOutput(log.toFile())
-//            .start().waitFor());
-//
-//        byte[] ans = Files.readAllBytes(log);
-//        byte[] orig = Files.readAllBytes(set.getOrig());
-//        Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
-//    }
+
+    @Test
+    public void testCompiler() throws Exception {
+        CompilerRunner runner = new CompilerRunner(CompilerRunner.Mode.COMPILER, "runtime");
+
+        Path asm = tmp.newFile(set.getName() + ".s").toPath();
+        Path output = tmp.newFile(set.getName()).toPath();
+        Path log = tmp.newFile(set.getName() + ".log").toPath();
+
+        Assert.assertEquals("Compile " + set.getCode(), 0,
+            runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output), null, null));
+        Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
+            .redirectInput(set.getInput().toFile())
+            .redirectOutput(log.toFile())
+            .start().waitFor());
+
+        byte[] ans = Files.readAllBytes(log);
+        byte[] orig = Files.readAllBytes(set.getOrig());
+        Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
+    }
 }

@@ -18,9 +18,15 @@ import java.util.Map;
 class Context {
     private final Map<String, AsgVariable> variablesMap = new HashMap<>();
     private final Environment environment;
+    private final AsgType returnType;
 
-    Context(Environment environment) {
+    Context(Environment environment, AsgType returnType) {
         this.environment = environment;
+        this.returnType = returnType;
+    }
+
+    AsgType getReturnType() {
+        return returnType;
     }
 
     AsgFunction resolveFunction(String name, List<AsgType> argumentTypes) {

@@ -19,6 +19,11 @@ public class AsgDataExpression implements AsgExpression {
         if (!type.getFields().stream().allMatch(values::containsKey)) {
             throw new IllegalArgumentException("Not all fields are set");
         }
+        if (values.entrySet().stream()
+            .anyMatch(entry -> !entry.getKey().getType().equals(entry.getValue().getResultType())))
+        {
+            throw new IllegalArgumentException("Types don't match");
+        }
         this.type = type;
         this.values = values;
     }

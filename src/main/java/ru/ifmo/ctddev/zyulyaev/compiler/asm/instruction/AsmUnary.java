@@ -12,6 +12,8 @@ public enum AsmUnary {
     PUSH("pushl"),
     POP("popl"),
     CALL("call"),
+    INC("incl"),
+    DEC("decl"),
 
     JMP("jmp"),
     JZ("jz"),
@@ -48,6 +50,9 @@ public enum AsmUnary {
 
         @Override
         public String print() {
+            if (operator == CALL && !operand.isSymbol()) {
+                return "call *" + operand.print();
+            }
             return operator.value + " " + operand.print();
         }
     }
