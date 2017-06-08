@@ -610,13 +610,15 @@ public class AsmTranslator {
                 );
                 return new VirtualRegisterValue(AsmRegister.EAX);
             case DIV:
-            case MOD:
+            case MOD: {
+                AsmRegister divisor = loadAsRegister(right, AsmRegister.ECX);
                 output.write(
                     AsmBinary.MOV.create(AsmRegister.EAX, left),
                     AsmNullary.CLTD,
-                    AsmUnary.DIV.create(right)
+                    AsmUnary.DIV.create(divisor)
                 );
                 return new VirtualRegisterValue(operator == AsgBinaryOperator.DIV ? AsmRegister.EAX : AsmRegister.EDX);
+            }
             case LT:
                 return comparison(AsmUnary.SETL, left, right);
             case LTE:
