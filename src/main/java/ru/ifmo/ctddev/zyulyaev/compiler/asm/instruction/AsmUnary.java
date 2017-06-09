@@ -18,6 +18,7 @@ public enum AsmUnary {
     JMP("jmp"),
     JZ("jz"),
     JNZ("jnz"),
+    JGE("jge"),
 
     /** if equal (or zero) */
     SETE("sete"),

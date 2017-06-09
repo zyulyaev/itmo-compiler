@@ -11,6 +11,17 @@ typedef struct rc_header_t {
     int ref_counter;
 } rc_header;
 
+typedef void (*destructor_t)(void*);
+
+typedef struct rc_vtable_header_t {
+    destructor_t destructor;
+} rc_vtable_header;
+
+typedef struct rc_fat_ptr_t {
+    rc_header* data;
+    rc_vtable_header* vtable;
+} rc_fat_ptr;
+
 void rc_write(int val) {
   printf("%d\n", val);
 }
@@ -116,4 +127,34 @@ void* rc_arrinit(void* src, int length) {
 
 int rc_arrlen(rc_array_header* ptr) {
     return ptr->length;
+}
+
+void rc_arrdel(rc_array_header* ptr, int depth, destructor_t destructor) {
+    int length = ptr->length;
+    rc_header** data = (rc_header**) &ptr[1];
+    for (int i = 0; i < length; i++) {
+        rc_header* elem_header = data[i];
+        elem_header->ref_counter -= 1;
+        if (elem_header->ref_counter == 0) {
+            if (depth == 1) {
+                destructor(elem_header);
+            } else {
+                rc_arrdel((rc_array_header*) elem_header, depth - 1, destructor);
+            }
+        }
+    }
+    free(ptr);
+}
+
+void rc_carrdel(rc_array_header* ptr) {
+    int length = ptr->length;
+    rc_fat_ptr* data = (rc_fat_ptr*) &ptr[1];
+    for (int i = 0; i < length; i++) {
+        rc_header* elem_header = data[i].data;
+        elem_header->ref_counter -= 1;
+        if (elem_header->ref_counter == 0) {
+            data[i].vtable->destructor(elem_header);
+        }
+    }
+    free(ptr);
 }

@@ -14,6 +14,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asm.line.AsmLine;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.BcInterpreter;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.interpreter.BcRuntime;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.model.BcProgram;
+import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.printer.BcPrinter;
 import ru.ifmo.ctddev.zyulyaev.compiler.bytecode.translate.BcProgramTranslator;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.Interpreter;
 import ru.ifmo.ctddev.zyulyaev.compiler.interpreter.InterpreterRuntime;
@@ -54,12 +55,10 @@ public class CompilerRunner {
             }
             case COMPILER: {
                 BcProgram bcProgram = BcProgramTranslator.translate(program);
-//                BcPrinter.print(bcProgram, System.out);
-//                for (AsmLine line : new AsmTranslator().translate(bcProgram)) {
-//                    System.out.println(line.print());
-//                }
+                BcPrinter.print(bcProgram, System.out);
                 try (BufferedWriter writer = Files.newBufferedWriter(fileSet.getAsmOutput())) {
-                    for (AsmLine line : new AsmTranslator().translate(bcProgram)) {
+                    for (AsmLine line : new AsmTranslator(bcProgram).translate()) {
+                        System.out.println(line.print());
                         writer.write(line.print());
                         writer.newLine();
                     }

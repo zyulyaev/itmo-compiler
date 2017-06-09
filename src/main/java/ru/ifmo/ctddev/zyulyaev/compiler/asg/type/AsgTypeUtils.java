@@ -8,9 +8,9 @@ public class AsgTypeUtils {
     private AsgTypeUtils() {
     }
 
-    public static int getArrayTypeDimension(AsgType type) {
+    public static int getArrayTypeDepth(AsgType type) {
         if (type instanceof AsgArrayType) {
-            return getArrayTypeDimension(((AsgArrayType) type).getCompound()) + 1;
+            return getArrayTypeDepth(((AsgArrayType) type).getCompound()) + 1;
         }
         return 0;
     }
