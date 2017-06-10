@@ -10,23 +10,25 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmOperand;
  */
 @Getter
 class VirtualRegisterValue {
+    private final AsgType type;
     private final AsmOperand main;
     private final AsmOperand aux;
 
-    VirtualRegisterValue(AsmOperand main, AsmOperand aux) {
+    VirtualRegisterValue(AsgType type, AsmOperand main, AsmOperand aux) {
+        this.type = type;
         this.main = main;
         this.aux = aux;
     }
 
-    VirtualRegisterValue(AsmOperand main) {
-        this(main, null);
+    VirtualRegisterValue(AsgType type, AsmOperand main) {
+        this(type, main, null);
     }
 
     static VirtualRegisterValue of(AsgType type, AsmOperand main, AsmOperand aux) {
         if (type.isClass()) {
-            return new VirtualRegisterValue(main, aux);
+            return new VirtualRegisterValue(type, main, aux);
         } else {
-            return new VirtualRegisterValue(main);
+            return new VirtualRegisterValue(type, main);
         }
     }
 

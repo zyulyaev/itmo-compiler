@@ -27,13 +27,21 @@ class GarbageCollector {
         return !type.isPrimitive() && type != AsgPredefinedType.NONE;
     }
 
-    void incrementRc(AsmOutput output, AsgType type, AsmRegister target) {
-        if (hasReferenceCounter(type)) {
-            output.write(AsmUnary.INC.create(new AsmPointer(target, 0)));
+    void incrementRc(AsmOutput output, VirtualRegisterValue target) {
+        if (hasReferenceCounter(target.getType())) {
+            AsmRegister base;
+            if (target.getMain().isRegister()) {
+                base = (AsmRegister) target.getMain();
+            } else {
+                output.write(AsmBinary.MOV.create(AsmRegister.EAX, target.getMain()));
+                base = AsmRegister.EAX;
+            }
+            output.write(AsmUnary.INC.create(new AsmPointer(base, Header.COUNTER_OFFSET)));
         }
     }
 
-    void decrementRc(AsmOutput output, AsgType type, VirtualRegisterValue target) {
+    void decrementRc(AsmOutput output, VirtualRegisterValue target) {
+        AsgType type = target.getType();
         if (hasReferenceCounter(type)) {
             output.write(
                 AsmUnary.PUSH.create(AsmRegister.EDX),

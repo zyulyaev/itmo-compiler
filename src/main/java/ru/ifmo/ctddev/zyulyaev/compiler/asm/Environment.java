@@ -37,8 +37,8 @@ class Environment {
     private final Map<AsgClassType, VirtualTableLayout> virtualTableLayoutMap = new HashMap<>();
 
     final AsmSymbol main = reserveFunction("main");
-    final AsmSymbol malloc = reserveFunction("malloc");
-    final AsmSymbol free = reserveFunction("free");
+    final AsmSymbol malloc = reserveFunction("rc_malloc");
+    final AsmSymbol free = reserveFunction("rc_free");
     final AsmSymbol memcpy = reserveFunction("memcpy");
     final AsmSymbol memset = reserveFunction("memset");
     final AsmSymbol arrinit = reserveFunction("rc_arrinit");
