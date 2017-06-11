@@ -55,6 +55,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static ru.ifmo.ctddev.zyulyaev.compiler.asm.Environment.sizeOf;
+
 /**
  * @author zyulyaev
  * @since 08.06.2017
@@ -304,15 +306,16 @@ class FunctionTranslator {
 
         @Override
         public VirtualRegisterValue visit(BcArrayInit arrayInit) {
-            // TODO for non-primitive types
-            int size = arrayInit.getValues().size(); // * sizeOf(arrayInit.getArrayType().getCompound());
+            int length = arrayInit.getValues().size();
+            int size = sizeOf(arrayInit.getArrayType().getCompound());
             pushReverse(arrayInit.getValues());
             output.write(
                 AsmUnary.PUSH.create(new AsmImmediate(size)),
-                AsmBinary.LEA.create(AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 4)),
+                AsmUnary.PUSH.create(new AsmImmediate(length)),
+                AsmBinary.LEA.create(AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 8)),
                 AsmUnary.PUSH.create(AsmRegister.EAX),
                 AsmUnary.CALL.create(env.arrinit),
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(size * 4 + 8))
+                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(length * size + 12))
             );
             return allocate(arrayInit.getArrayType(), AsmRegister.EAX, null);
         }
@@ -472,6 +475,9 @@ class FunctionTranslator {
             switch (call.getFunction().getName()) {
             case "arrlen":
                 return inlineArrlen(call);
+            case "arrmake":
+            case "Arrmake":
+                return inlineArrmake(call);
             }
             return null;
         }
@@ -484,6 +490,35 @@ class FunctionTranslator {
                 allocate(AsgPredefinedType.INT, new AsmPointer(base, Header.Array.LENGTH_OFFSET), null);
             gc.decrementRc(output, array);
             deallocate(argument);
+            return result;
+        }
+
+        private VirtualRegisterValue inlineArrmake(BcCall call) {
+            BcValue value = call.getArguments().get(1);
+            pushReverse(call.getArguments());
+            int paramsSize;
+            if (value.getType().isClass()) {
+                output.write(AsmUnary.CALL.create(env.carrmake));
+                paramsSize = 12;
+            } else {
+                output.write(AsmUnary.CALL.create(env.arrmake));
+                paramsSize = 8;
+            }
+            VirtualRegisterValue result = allocate(call.getResultType(), AsmRegister.EAX, null);
+            if (!value.getType().isPrimitive()) {
+                output.write(
+                    AsmBinary.MOV.create(AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 0)),
+                    AsmBinary.MOV.create(AsmRegister.EDX, new AsmPointer(AsmRegister.ESP, 4)),
+                    AsmBinary.ADD.create(new AsmPointer(AsmRegister.EDX, Header.COUNTER_OFFSET), AsmRegister.EAX)
+                );
+                if (value.getType().isClass()) {
+                    output.write(AsmBinary.MOV.create(AsmRegister.ECX, new AsmPointer(AsmRegister.ESP, 8)));
+                }
+                gc.decrementRc(output, VirtualRegisterValue.of(value.getType(), AsmRegister.EDX, AsmRegister.ECX));
+            }
+            output.write(
+                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(paramsSize))
+            );
             return result;
         }
 
@@ -504,7 +539,7 @@ class FunctionTranslator {
 
         private AsmPointer buildArrayIndexPointer(AsgArrayType arrayType, AsmOperand array, AsmOperand index) {
             AsmRegister base = loadAsRegister(array, AsmRegister.EDX);
-            int elementSize = Environment.sizeOf(arrayType.getCompound());
+            int elementSize = sizeOf(arrayType.getCompound());
             AsmRegister spread;
             int offset = Header.Array.SIZE;
 

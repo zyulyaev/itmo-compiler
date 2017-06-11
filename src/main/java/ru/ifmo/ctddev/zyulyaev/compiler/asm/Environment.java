@@ -1,8 +1,10 @@
 package ru.ifmo.ctddev.zyulyaev.compiler.asm;
 
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 import org.apache.commons.lang3.SystemUtils;
+import ru.ifmo.ctddev.zyulyaev.compiler.Runtime;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgExternalFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgFunction;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
@@ -27,6 +29,9 @@ import java.util.stream.Collectors;
  * @since 08.06.2017
  */
 class Environment {
+    private static final Set<AsgExternalFunction> INLINE_FUNCTIONS = Sets.newHashSet(Runtime.arrlenFunction,
+        Runtime.arrmakeFunction, Runtime.ArrmakeFunction);
+
     private final Set<String> symbols = new HashSet<>();
     private final Map<AsgFunction, AsmSymbol> functionSymbolMap = new HashMap<>();
     private final Table<AsgDataType, AsgClassType, AsmSymbol> vtableSymbolTable = HashBasedTable.create();
@@ -44,6 +49,8 @@ class Environment {
     final AsmSymbol arrinit = reserveFunction("rc_arrinit");
     final AsmSymbol strinit = reserveFunction("rc_strinit");
     final AsmSymbol arrdel = reserveFunction("rc_arrdel");
+    final AsmSymbol arrmake = reserveFunction("rc_arrmake");
+    final AsmSymbol carrmake = reserveFunction("rc_carrmake");
     final AsmSymbol carrdel = reserveFunction("rc_carrdel");
 
     Environment(List<AsgDataType> dataTypes, List<AsgClassType> classes, List<BcFunctionDefinition> functions,
@@ -51,6 +58,7 @@ class Environment {
     {
         functionSymbolMap.put(main, this.main);
         Map<AsgExternalFunction, AsmSymbol> extFunctionSymbolMap = externalFunctions.values().stream()
+            .filter(function -> !INLINE_FUNCTIONS.contains(function))
             .distinct().collect(Collectors.toMap(
                 Function.identity(),
                 f -> reserveFunction("rc_" + f.getName())

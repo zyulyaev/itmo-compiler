@@ -126,15 +126,15 @@ int rc_strcmp(rc_header* a, rc_header* b) {
     return result;
 }
 
-static rc_array_header* _arrcrt(int length) {
-    rc_array_header* header = rc_malloc(length * 4 + sizeof(rc_array_header));
+static rc_array_header* _arrcrt(int length, int elem_size) {
+    rc_array_header* header = rc_malloc(length * elem_size + sizeof(rc_array_header));
     header->ref_counter = 1;
     header->length = length;
     return header;
 }
 
-static rc_array_header* _arrmake(int length, int value) {
-    rc_array_header* header = _arrcrt(length);
+rc_array_header* rc_arrmake(int length, int value) {
+    rc_array_header* header = _arrcrt(length, 4);
     int* data = (int*) &header[1];
     for (int i = 0; i < length; i++) {
         data[i] = value;
@@ -142,18 +142,19 @@ static rc_array_header* _arrmake(int length, int value) {
     return header;
 }
 
-void* rc_arrmake(int length, int value) {
-    return _arrmake(length, value);
+rc_array_header* rc_carrmake(int length, int main, int aux) {
+    rc_array_header* header = _arrcrt(length, 8);
+    int* data = (int*) &header[1];
+    for (int i = 0; i < length; i++) {
+        data[i * 2] = main;
+        data[i * 2 + 1] = aux;
+    }
+    return header;
 }
 
-void* rc_Arrmake(int length, int value) {
-    // TODO for class types
-    return _arrmake(length, value);
-}
-
-void* rc_arrinit(void* src, int length) {
-    rc_array_header* header = _arrcrt(length);
-    memcpy(&header[1], src, length * 4);
+rc_array_header* rc_arrinit(void* src, int length, int elem_size) {
+    rc_array_header* header = _arrcrt(length, elem_size);
+    memcpy(&header[1], src, length * elem_size);
     return header;
 }
 

@@ -36,7 +36,12 @@ class GarbageCollector {
                 output.write(AsmBinary.MOV.create(AsmRegister.EAX, target.getMain()));
                 base = AsmRegister.EAX;
             }
-            output.write(AsmUnary.INC.create(new AsmPointer(base, Header.COUNTER_OFFSET)));
+            output.write(
+                AsmBinary.TEST.create(base, base),
+                AsmUnary.JZ.create(new AsmSymbol("1f")),
+                AsmUnary.INC.create(new AsmPointer(base, Header.COUNTER_OFFSET))
+            );
+            output.write(new AsmSymbol("1"));
         }
     }
 

@@ -48,7 +48,7 @@ public abstract class CompilerTestBase {
             runner.run(new CompilerRunner.FileSet(set.getCode(),null,null), in, out);
         }
         byte[] ans = buffer.toByteArray();
-        byte[] orig = Files.readAllBytes(set.getOrig());
+        byte[] orig = Files.readAllBytes(set.getOrigLog());
         Assert.assertArrayEquals(orig, ans);
     }
 
@@ -69,16 +69,21 @@ public abstract class CompilerTestBase {
         Path asm = tmp.newFile(set.getName() + ".s").toPath();
         Path output = tmp.newFile(set.getName()).toPath();
         Path log = tmp.newFile(set.getName() + ".log").toPath();
+        Path err = tmp.newFile(set.getName() + ".err").toPath();
 
         Assert.assertEquals("Compile " + set.getCode(), 0,
             runner.run(new CompilerRunner.FileSet(set.getCode(), asm, output), null, null));
         Assert.assertEquals("Run " + set.getCode(), 0, new ProcessBuilder(output.toString())
             .redirectInput(set.getInput().toFile())
             .redirectOutput(log.toFile())
+            .redirectError(err.toFile())
             .start().waitFor());
 
         byte[] ans = Files.readAllBytes(log);
-        byte[] orig = Files.readAllBytes(set.getOrig());
+        byte[] orig = Files.readAllBytes(set.getOrigLog());
         Assert.assertArrayEquals("Result " + set.getCode(), orig, ans);
+        byte[] ansErr = Files.readAllBytes(err);
+        byte[] origErr = Files.exists(set.getOrigErr()) ? Files.readAllBytes(set.getOrigErr()) : new byte[0];
+        Assert.assertArrayEquals("Result err " + set.getCode(), origErr, ansErr);
     }
 }
