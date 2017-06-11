@@ -40,10 +40,12 @@ class StatementParser extends GrammarBaseVisitor<AsgStatement> {
 
     @Override
     public AsgStatement visitLeftValueAssignment(GrammarParser.LeftValueAssignmentContext ctx) {
-        AsgLeftValueExpression leftValue =
-            (AsgLeftValueExpression) ctx.leftValue().accept(context.asExpressionParser());
+        AsgExpression target = ctx.term().accept(context.asExpressionParser());
+        if (!(target instanceof AsgLeftValueExpression)) {
+            throw new IllegalArgumentException("Cannot assign value to right-value");
+        }
         AsgExpression expression = ctx.value.accept(context.asExpressionParser());
-        return new AsgAssignment(leftValue, expression);
+        return new AsgAssignment((AsgLeftValueExpression) target, expression);
     }
 
     @Override

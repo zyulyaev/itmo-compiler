@@ -57,7 +57,7 @@ expressionStatement: expression;
 
 assignment
     : variable=id ':=' value=expression     # variableAssignment
-    | leftValue ':=' value=expression       # leftValueAssignment
+    | term ':=' value=expression            # leftValueAssignment
     ;
 
 ifStatement: 'if' condition=expression 'then' positive=statements negative=elseBlock? 'fi';
@@ -87,21 +87,15 @@ expression
     | '[' arguments ']'                                                     # arrayExpr
     | dataExpression                                                        # dataExpr
     | expression 'as' type                                                  # castExpr
-    | leftValue                                                             # leftValueExpr
     | term                                                                  # termExpr
-    ;
-
-leftValue
-    :<assoc=right> array=leftValue '[' index=expression ']'                 # indexLeftValue1
-    |<assoc=right> array=term      '[' index=expression ']'                 # indexLeftValue2
-    |<assoc=right> object=leftValue '.' member=id                           # memberAccessLeftValue1
-    |<assoc=right> object=term '.' member=id                                # memberAccessLeftValue2
     ;
 
 term
     : '(' expression ')'                                                    # parensTerm
+    |<assoc=right> array=term '[' index=expression ']'                      # indexTerm
+    |<assoc=right> object=term '.' member=id                                # memberTerm
+    |<assoc=right> object=term '.' method=id '(' args=arguments ')'         # methodCallTerm
     | name=id '(' args=arguments ')'                                        # functionCallTerm
-    | <assoc=right> object=term '.' method=id '(' args=arguments ')'        # methodCallTerm
     | literal                                                               # literalTerm
     | id                                                                    # idTerm
     ;

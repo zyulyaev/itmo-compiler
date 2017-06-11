@@ -64,28 +64,14 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
     }
 
     @Override
-    public AsgExpression visitIndexLeftValue1(GrammarParser.IndexLeftValue1Context ctx) {
+    public AsgExpression visitIndexTerm(GrammarParser.IndexTermContext ctx) {
         AsgExpression array = ctx.array.accept(this);
         AsgExpression index = ctx.index.accept(this);
         return new AsgIndexExpression(array, index);
     }
 
     @Override
-    public AsgExpression visitIndexLeftValue2(GrammarParser.IndexLeftValue2Context ctx) {
-        AsgExpression array = ctx.array.accept(this);
-        AsgExpression index = ctx.index.accept(this);
-        return new AsgIndexExpression(array, index);
-    }
-
-    @Override
-    public AsgExpression visitMemberAccessLeftValue1(GrammarParser.MemberAccessLeftValue1Context ctx) {
-        AsgExpression object = ctx.object.accept(this);
-        String member = ctx.member.getText();
-        return new AsgMemberAccessExpression(object, member);
-    }
-
-    @Override
-    public AsgExpression visitMemberAccessLeftValue2(GrammarParser.MemberAccessLeftValue2Context ctx) {
+    public AsgExpression visitMemberTerm(GrammarParser.MemberTermContext ctx) {
         AsgExpression object = ctx.object.accept(this);
         String member = ctx.member.getText();
         return new AsgMemberAccessExpression(object, member);
