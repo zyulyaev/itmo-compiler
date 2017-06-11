@@ -36,7 +36,7 @@ public class AsmTranslator {
     }
 
     public List<AsmLine> translate() {
-        AsmOutput output = new AsmOutput();
+        AsmBuilder output = new AsmBuilder();
 
         // Data section
         output.write(AsmSectionLine.DATA);
@@ -79,21 +79,21 @@ public class AsmTranslator {
         return collector.getStrings();
     }
 
-    private void translateFunction(BcFunctionDefinition definition, AsmOutput output) {
-        FunctionTranslator translator = new FunctionTranslator(env, output, gc);
+    private void translateFunction(BcFunctionDefinition definition, AsmBuilder builder) {
+        FunctionTranslator translator = new FunctionTranslator(env, builder, gc);
         translator.translate(env.getFunctionSymbol(definition.getFunction()), null, definition.getParameters(),
             definition.getLocalVariables(), definition.getBody());
     }
 
-    private void translateMethod(BcMethodDefinition definition, AsmOutput output) {
-        FunctionTranslator translator = new FunctionTranslator(env, output, gc);
+    private void translateMethod(BcMethodDefinition definition, AsmBuilder builder) {
+        FunctionTranslator translator = new FunctionTranslator(env, builder, gc);
         translator.translate(env.getMethodSymbol(definition.getDataType(), definition.getMethod()),
             definition.getThisValue(), definition.getParameters(), definition.getLocalVariables(),
             definition.getBody());
     }
 
-    private void buildDestructor(AsgDataType dataType, AsmOutput output) {
-        FunctionTranslator translator = new FunctionTranslator(env, output, gc);
+    private void buildDestructor(AsgDataType dataType, AsmBuilder builder) {
+        FunctionTranslator translator = new FunctionTranslator(env, builder, gc);
         translator.buildDestructor(dataType);
     }
 }

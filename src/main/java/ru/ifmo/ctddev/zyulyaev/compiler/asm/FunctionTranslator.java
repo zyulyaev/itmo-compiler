@@ -63,10 +63,10 @@ import static ru.ifmo.ctddev.zyulyaev.compiler.asm.Environment.sizeOf;
  */
 class FunctionTranslator {
     private final Environment env;
-    private final AsmOutput output;
+    private final AsmBuilder output;
     private final GarbageCollector gc;
 
-    FunctionTranslator(Environment env, AsmOutput output, GarbageCollector gc) {
+    FunctionTranslator(Environment env, AsmBuilder output, GarbageCollector gc) {
         this.env = env;
         this.output = output;
         this.gc = gc;
@@ -76,7 +76,7 @@ class FunctionTranslator {
         List<AsgVariable> localVariables, List<BcLine> body)
     {
         Map<BcLabel, AsmSymbol> lineLabels = buildLineLabels(body, symbol);
-        AsmOutput tempOutput = new AsmOutput();
+        AsmBuilder tempOutput = new AsmBuilder();
         AsmSymbol cleanup = env.reserveLabel("cleanup", symbol);
         FunctionContext ctx = new FunctionContext(thisValue, parameters, localVariables, lineLabels, cleanup,
             FunctionContext.REGISTER_STACK.size());
@@ -84,24 +84,22 @@ class FunctionTranslator {
         body.forEach(line -> line.accept(translator));
 
         output.write(symbol);
-        FunctionContext.REGISTER_STACK.forEach(reg -> output.write(AsmUnary.PUSH.create(reg)));
-        output.write(AsmBinary.ENTER.create(new AsmImmediate(0), new AsmImmediate(ctx.getStackSize())));
+        FunctionContext.REGISTER_STACK.forEach(reg -> output.write(AsmUnary.PUSH, reg));
+        output.write(AsmBinary.ENTER, new AsmImmediate(0), new AsmImmediate(ctx.getStackSize()));
         if (ctx.getStackSize() != 0) {
-            output.write(
-                AsmBinary.MOV.create(AsmRegister.EAX, AsmRegister.ESP),
-                AsmUnary.PUSH.create(new AsmImmediate(ctx.getStackSize())),
-                AsmUnary.PUSH.create(new AsmImmediate(0)),
-                AsmUnary.PUSH.create(AsmRegister.EAX),
-                AsmUnary.CALL.create(env.memset),
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(12))
-            );
+            output
+                .write(AsmBinary.MOV, AsmRegister.EAX, AsmRegister.ESP)
+                .write(AsmUnary.PUSH, new AsmImmediate(ctx.getStackSize()))
+                .write(AsmUnary.PUSH, new AsmImmediate(0))
+                .write(AsmUnary.PUSH, AsmRegister.EAX)
+                .write(AsmUnary.CALL, env.memset)
+                .write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(12));
         }
         output.append(tempOutput);
-        output.write(cleanup);
-        output.write(
-            AsmUnary.PUSH.create(AsmRegister.EAX),
-            AsmUnary.PUSH.create(AsmRegister.EDX)
-        );
+        output
+            .write(cleanup)
+            .write(AsmUnary.PUSH, AsmRegister.EAX)
+            .write(AsmUnary.PUSH, AsmRegister.EDX);
         Stream.of(
             localVariables.stream(),
             parameters.stream(),
@@ -111,13 +109,12 @@ class FunctionTranslator {
             VirtualRegisterValue value = VirtualRegisterValue.of(variable.getType(), pointer, pointer.shift(4));
             gc.decrementRc(output, value);
         });
-        output.write(
-            AsmUnary.POP.create(AsmRegister.EDX),
-            AsmUnary.POP.create(AsmRegister.EAX),
-            AsmNullary.LEAVE
-        );
+        output
+            .write(AsmUnary.POP, AsmRegister.EDX)
+            .write(AsmUnary.POP, AsmRegister.EAX)
+            .write(AsmNullary.LEAVE);
         for (int i = FunctionContext.REGISTER_STACK.size() - 1; i >= 0; i--) {
-            output.write(AsmUnary.POP.create(FunctionContext.REGISTER_STACK.get(i)));
+            output.write(AsmUnary.POP, FunctionContext.REGISTER_STACK.get(i));
         }
         output.write(AsmNullary.RET);
     }
@@ -130,16 +127,15 @@ class FunctionTranslator {
         for (AsgDataType.Field field : dataType.getFields()) {
             if (!field.getType().isPrimitive()) {
                 // store this
-                output.write(AsmBinary.MOV.create(AsmRegister.EDX, thisPointer));
+                output.write(AsmBinary.MOV, AsmRegister.EDX, thisPointer);
                 AsmPointer pointer = new AsmPointer(AsmRegister.EDX, Header.Data.SIZE + layout.getFieldOffset(field));
                 gc.decrementRc(output, VirtualRegisterValue.of(field.getType(), pointer, pointer.shift(4)));
             }
         }
-        output.write(
-            AsmUnary.PUSH.create(thisPointer),
-            AsmUnary.CALL.create(env.free),
-            AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4))
-        );
+        output
+            .write(AsmUnary.PUSH, thisPointer)
+            .write(AsmUnary.CALL, env.free)
+            .write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(4));
         output.write(AsmNullary.RET);
     }
 
@@ -166,27 +162,16 @@ class FunctionTranslator {
         BcValueVisitor<VirtualRegisterValue>
     {
         private final Map<BcRegister, VirtualRegisterValue> virtualRegisterValues = new HashMap<>();
-        private final AsmOutput output;
+        private final AsmBuilder builder;
         private final Environment env;
         private final FunctionContext ctx;
         private final GarbageCollector gc;
 
-        LineTranslator(AsmOutput output, Environment env, FunctionContext ctx, GarbageCollector gc) {
-            this.output = output;
+        LineTranslator(AsmBuilder builder, Environment env, FunctionContext ctx, GarbageCollector gc) {
+            this.builder = builder;
             this.env = env;
             this.ctx = ctx;
             this.gc = gc;
-        }
-
-        /**
-         * Potentially uses EAX
-         */
-        private void move(AsmOperand dest, AsmOperand src) {
-            if (dest.isPointer() && src.isPointer()) {
-                output.write(AsmBinary.MOV.create(AsmRegister.EAX, src));
-                src = AsmRegister.EAX;
-            }
-            output.write(AsmBinary.MOV.create(dest, src));
         }
 
         /**
@@ -194,11 +179,11 @@ class FunctionTranslator {
          */
         private void storeToMemory(AsgType type, AsmPointer target, VirtualRegisterValue value, boolean destruct) {
             if (destruct) {
-                gc.decrementRc(output, VirtualRegisterValue.of(type, target, target.shift(4)));
+                gc.decrementRc(builder, VirtualRegisterValue.of(type, target, target.shift(4)));
             }
-            move(target, value.getMain());
+            builder.move(target, value.getMain(), AsmRegister.EAX);
             if (value.hasAux()) {
-                move(target.shift(4), value.getAux());
+                builder.move(target.shift(4), value.getAux(), AsmRegister.EAX);
             }
         }
 
@@ -207,21 +192,8 @@ class FunctionTranslator {
          */
         private VirtualRegisterValue allocateFromMemory(AsgType type, AsmPointer source) {
             VirtualRegisterValue result = allocate(type, source, source.shift(4));
-            gc.incrementRc(output, result);
+            gc.incrementRc(builder, result, new AsmImmediate(1));
             return result;
-        }
-
-        /**
-         * If source is already a register, returns itself. Otherwise moves value from source to specified destination
-         * and returns it.
-         */
-        private AsmRegister loadAsRegister(AsmOperand source, AsmRegister dest) {
-            if (source.isRegister()) {
-                return (AsmRegister) source;
-            } else {
-                output.write(AsmBinary.MOV.create(dest, source));
-                return dest;
-            }
         }
 
         /**
@@ -233,10 +205,10 @@ class FunctionTranslator {
             VirtualRegisterValue allocated = type.isClass()
                 ? new VirtualRegisterValue(type, ctx.allocate(), ctx.allocate())
                 : new VirtualRegisterValue(type, ctx.allocate());
-            move(allocated.getMain(), main);
+            builder.move(allocated.getMain(), main, AsmRegister.EAX);
             if (allocated.hasAux()) {
                 Objects.requireNonNull(aux, "aux");
-                move(allocated.getAux(), aux);
+                builder.move(allocated.getAux(), aux, AsmRegister.EAX);
             }
             return allocated;
         }
@@ -281,14 +253,14 @@ class FunctionTranslator {
             if (destination != null) {
                 assign(destination, value);
             } else if (value != null) {
-                gc.decrementRc(output, value);
+                gc.decrementRc(builder, value);
             }
             return null;
         }
 
         @Override
         public Void visit(BcLabelLine labelLine) {
-            output.write(ctx.getLabel(labelLine.getLabel()));
+            builder.write(ctx.getLabel(labelLine.getLabel()));
             return null;
         }
 
@@ -297,9 +269,9 @@ class FunctionTranslator {
                 BcValue value = values.get(i);
                 VirtualRegisterValue virtualValue = value.accept(this);
                 if (virtualValue.hasAux()) {
-                    output.write(AsmUnary.PUSH.create(virtualValue.getAux()));
+                    builder.write(AsmUnary.PUSH, virtualValue.getAux());
                 }
-                output.write(AsmUnary.PUSH.create(virtualValue.getMain()));
+                builder.write(AsmUnary.PUSH, virtualValue.getMain());
                 deallocate(value);
             }
         }
@@ -309,14 +281,13 @@ class FunctionTranslator {
             int length = arrayInit.getValues().size();
             int size = sizeOf(arrayInit.getArrayType().getCompound());
             pushReverse(arrayInit.getValues());
-            output.write(
-                AsmUnary.PUSH.create(new AsmImmediate(size)),
-                AsmUnary.PUSH.create(new AsmImmediate(length)),
-                AsmBinary.LEA.create(AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 8)),
-                AsmUnary.PUSH.create(AsmRegister.EAX),
-                AsmUnary.CALL.create(env.arrinit),
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(length * size + 12))
-            );
+            builder
+                .write(AsmUnary.PUSH, new AsmImmediate(size))
+                .write(AsmUnary.PUSH, new AsmImmediate(length))
+                .write(AsmBinary.LEA, AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 8))
+                .write(AsmUnary.PUSH, AsmRegister.EAX)
+                .write(AsmUnary.CALL, env.arrinit)
+                .write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(length * size + 12));
             return allocate(arrayInit.getArrayType(), AsmRegister.EAX, null);
         }
 
@@ -324,12 +295,11 @@ class FunctionTranslator {
         public VirtualRegisterValue visit(BcStringInit stringInit) {
             String value = stringInit.getValue();
             AsmSymbol stringSymbol = env.getStringSymbol(value);
-            output.write(
-                AsmUnary.PUSH.create(stringSymbol.toAddress()),
-                AsmUnary.PUSH.create(new AsmImmediate(value.length())),
-                AsmUnary.CALL.create(env.strinit),
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(8))
-            );
+            builder
+                .write(AsmUnary.PUSH, stringSymbol.toAddress())
+                .write(AsmUnary.PUSH, new AsmImmediate(value.length()))
+                .write(AsmUnary.CALL, env.strinit)
+                .write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(8));
             return allocate(AsgPredefinedType.STRING, AsmRegister.EAX, null);
         }
 
@@ -343,33 +313,28 @@ class FunctionTranslator {
             deallocate(binOp.getLeft(), binOp.getRight());
             switch (operator) {
             case ADD: {
-                AsmRegister leftRegister = loadAsRegister(left, AsmRegister.EAX);
-                AsmRegister rightRegister = loadAsRegister(right, AsmRegister.ECX);
-                output.write(
-                    AsmBinary.LEA.create(AsmRegister.EAX, new AsmPointer(leftRegister, 1, rightRegister, 0))
-                );
+                AsmRegister leftRegister = builder.loadAsRegister(left, AsmRegister.EAX);
+                AsmRegister rightRegister = builder.loadAsRegister(right, AsmRegister.ECX);
+                builder.write(AsmBinary.LEA, AsmRegister.EAX, new AsmPointer(leftRegister, 1, rightRegister, 0));
                 return allocate(AsgPredefinedType.INT, AsmRegister.EAX, null);
             }
             case SUB:
-                output.write(
-                    AsmBinary.MOV.create(AsmRegister.EAX, left),
-                    AsmBinary.SUB.create(AsmRegister.EAX, right)
-                );
+                builder
+                    .write(AsmBinary.MOV, AsmRegister.EAX, left)
+                    .write(AsmBinary.SUB, AsmRegister.EAX, right);
                 return allocate(AsgPredefinedType.INT, AsmRegister.EAX, null);
             case MUL:
-                output.write(
-                    AsmBinary.MOV.create(AsmRegister.EAX, left),
-                    AsmBinary.IMUL.create(AsmRegister.EAX, right)
-                );
+                builder
+                    .write(AsmBinary.MOV, AsmRegister.EAX, left)
+                    .write(AsmBinary.IMUL, AsmRegister.EAX, right);
                 return allocate(AsgPredefinedType.INT, AsmRegister.EAX, null);
             case DIV:
             case MOD: {
-                AsmRegister divisor = loadAsRegister(right, AsmRegister.ECX);
-                output.write(
-                    AsmBinary.MOV.create(AsmRegister.EAX, left),
-                    AsmNullary.CLTD,
-                    AsmUnary.DIV.create(divisor)
-                );
+                AsmRegister divisor = builder.loadAsRegister(right, AsmRegister.ECX);
+                builder
+                    .write(AsmBinary.MOV, AsmRegister.EAX, left)
+                    .write(AsmNullary.CLTD)
+                    .write(AsmUnary.DIV, divisor);
                 return allocate(
                     AsgPredefinedType.INT,
                     operator == AsgBinaryOperator.DIV ? AsmRegister.EAX : AsmRegister.EDX,
@@ -389,30 +354,26 @@ class FunctionTranslator {
             case NEQ:
                 return comparison(AsmUnary.SETNE, left, right);
             case OR: {
-                AsmRegister leftRegister = loadAsRegister(left, AsmRegister.ECX);
-                output.write(
-                    AsmBinary.XOR.create(AsmRegister.EAX, AsmRegister.EAX),
-                    AsmBinary.OR.create(leftRegister, right),
-                    AsmUnary.SETNE.create(AsmRegister.AL)
-                );
+                AsmRegister leftRegister = builder.loadAsRegister(left, AsmRegister.ECX);
+                builder
+                    .write(AsmBinary.XOR, AsmRegister.EAX, AsmRegister.EAX)
+                    .write(AsmBinary.OR, leftRegister, right)
+                    .write(AsmUnary.SETNE, AsmRegister.AL);
                 return allocate(AsgPredefinedType.INT, AsmRegister.EAX, null);
             }
             case AND: {
-                output.write(
-                    AsmBinary.XOR.create(AsmRegister.EAX, AsmRegister.EAX),
-                    AsmBinary.XOR.create(AsmRegister.ECX, AsmRegister.ECX)
-                );
-                AsmRegister leftRegister = loadAsRegister(left, AsmRegister.EDX);
-                output.write(
-                    AsmBinary.TEST.create(leftRegister, leftRegister),
-                    AsmUnary.SETNE.create(AsmRegister.AL)
-                );
-                AsmRegister rightRegister = loadAsRegister(right, AsmRegister.EDX);
-                output.write(
-                    AsmBinary.TEST.create(rightRegister, rightRegister),
-                    AsmUnary.SETNE.create(AsmRegister.CL),
-                    AsmBinary.AND.create(AsmRegister.EAX, AsmRegister.ECX)
-                );
+                builder
+                    .write(AsmBinary.XOR, AsmRegister.EAX, AsmRegister.EAX)
+                    .write(AsmBinary.XOR, AsmRegister.ECX, AsmRegister.ECX);
+                AsmRegister leftRegister = builder.loadAsRegister(left, AsmRegister.EDX);
+                builder
+                    .write(AsmBinary.TEST, leftRegister, leftRegister)
+                    .write(AsmUnary.SETNE, AsmRegister.AL);
+                AsmRegister rightRegister = builder.loadAsRegister(right, AsmRegister.EDX);
+                builder
+                    .write(AsmBinary.TEST, rightRegister, rightRegister)
+                    .write(AsmUnary.SETNE, AsmRegister.CL)
+                    .write(AsmBinary.AND, AsmRegister.EAX, AsmRegister.ECX);
                 return allocate(AsgPredefinedType.INT, AsmRegister.EAX, null);
             }
             }
@@ -420,12 +381,11 @@ class FunctionTranslator {
         }
 
         private VirtualRegisterValue comparison(AsmUnary setOperator, AsmOperand left, AsmOperand right) {
-            AsmRegister leftRegister = loadAsRegister(left, AsmRegister.ECX);
-            output.write(
-                AsmBinary.XOR.create(AsmRegister.EAX, AsmRegister.EAX),
-                AsmBinary.CMP.create(leftRegister, right),
-                setOperator.create(AsmRegister.AL)
-            );
+            AsmRegister leftRegister = builder.loadAsRegister(left, AsmRegister.ECX);
+            builder
+                .write(AsmBinary.XOR, AsmRegister.EAX, AsmRegister.EAX)
+                .write(AsmBinary.CMP, leftRegister, right)
+                .write(setOperator, AsmRegister.AL);
             return allocate(AsgPredefinedType.INT, AsmRegister.EAX, null);
         }
 
@@ -436,19 +396,18 @@ class FunctionTranslator {
             assertNoVirtualRegisters();
 
             AsmSymbol symbol = ctx.getLabel(jump.getLabel());
-            AsmRegister conditionRegister = loadAsRegister(condition, AsmRegister.EAX);
-            output.write(
-                AsmBinary.TEST.create(conditionRegister, conditionRegister),
-                AsmUnary.JZ.create(symbol)
-            );
-
+            AsmRegister conditionRegister = builder.loadAsRegister(condition, AsmRegister.EAX);
+            builder
+                .write(AsmBinary.TEST, conditionRegister, conditionRegister)
+                .write(AsmUnary.JZ, symbol);
+            
             return null;
         }
 
         @Override
         public VirtualRegisterValue visit(BcJump jump) {
             assertNoVirtualRegisters();
-            output.write(AsmUnary.JMP.create(ctx.getLabel(jump.getLabel())));
+            builder.write(AsmUnary.JMP, ctx.getLabel(jump.getLabel()));
             return null;
         }
 
@@ -464,10 +423,9 @@ class FunctionTranslator {
                 .mapToInt(Environment::sizeOf)
                 .sum();
             pushReverse(call.getArguments());
-            output.write(
-                AsmUnary.CALL.create(env.getFunctionSymbol(function)),
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(paramsSize))
-            );
+            builder
+                .write(AsmUnary.CALL, env.getFunctionSymbol(function))
+                .write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(paramsSize));
             return allocate(function.getReturnType(), AsmRegister.EAX, AsmRegister.EDX);
         }
 
@@ -485,10 +443,10 @@ class FunctionTranslator {
         private VirtualRegisterValue inlineArrlen(BcCall call) {
             BcValue argument = call.getArguments().get(0);
             VirtualRegisterValue array = argument.accept(this);
-            AsmRegister base = loadAsRegister(array.getMain(), AsmRegister.EAX);
+            AsmRegister base = builder.loadAsRegister(array.getMain(), AsmRegister.EAX);
             VirtualRegisterValue result =
                 allocate(AsgPredefinedType.INT, new AsmPointer(base, Header.Array.LENGTH_OFFSET), null);
-            gc.decrementRc(output, array);
+            gc.decrementRc(builder, array);
             deallocate(argument);
             return result;
         }
@@ -498,27 +456,25 @@ class FunctionTranslator {
             pushReverse(call.getArguments());
             int paramsSize;
             if (value.getType().isClass()) {
-                output.write(AsmUnary.CALL.create(env.carrmake));
+                builder.write(AsmUnary.CALL, env.carrmake);
                 paramsSize = 12;
             } else {
-                output.write(AsmUnary.CALL.create(env.arrmake));
+                builder.write(AsmUnary.CALL, env.arrmake);
                 paramsSize = 8;
             }
             VirtualRegisterValue result = allocate(call.getResultType(), AsmRegister.EAX, null);
             if (!value.getType().isPrimitive()) {
-                output.write(
-                    AsmBinary.MOV.create(AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 0)),
-                    AsmBinary.MOV.create(AsmRegister.EDX, new AsmPointer(AsmRegister.ESP, 4)),
-                    AsmBinary.ADD.create(new AsmPointer(AsmRegister.EDX, Header.COUNTER_OFFSET), AsmRegister.EAX)
-                );
+                builder
+                    .write(AsmBinary.MOV, AsmRegister.EAX, new AsmPointer(AsmRegister.ESP, 0))
+                    .write(AsmBinary.MOV, AsmRegister.EDX, new AsmPointer(AsmRegister.ESP, 4));
                 if (value.getType().isClass()) {
-                    output.write(AsmBinary.MOV.create(AsmRegister.ECX, new AsmPointer(AsmRegister.ESP, 8)));
+                    builder.write(AsmBinary.MOV, AsmRegister.ECX, new AsmPointer(AsmRegister.ESP, 8));
                 }
-                gc.decrementRc(output, VirtualRegisterValue.of(value.getType(), AsmRegister.EDX, AsmRegister.ECX));
+                VirtualRegisterValue elem = VirtualRegisterValue.of(value.getType(), AsmRegister.EDX, AsmRegister.ECX);
+                gc.incrementRc(builder, elem, AsmRegister.EAX);
+                gc.decrementRc(builder, elem);
             }
-            output.write(
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(paramsSize))
-            );
+            builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(paramsSize));
             return result;
         }
 
@@ -538,7 +494,7 @@ class FunctionTranslator {
         }
 
         private AsmPointer buildArrayIndexPointer(AsgArrayType arrayType, AsmOperand array, AsmOperand index) {
-            AsmRegister base = loadAsRegister(array, AsmRegister.EDX);
+            AsmRegister base = builder.loadAsRegister(array, AsmRegister.EDX);
             int elementSize = sizeOf(arrayType.getCompound());
             AsmRegister spread;
             int offset = Header.Array.SIZE;
@@ -547,7 +503,7 @@ class FunctionTranslator {
                 offset += ((AsmImmediate) index).getValue() * elementSize;
                 spread = null;
             } else {
-                spread = loadAsRegister(index, AsmRegister.ECX);
+                spread = builder.loadAsRegister(index, AsmRegister.ECX);
             }
             return new AsmPointer(base, elementSize, spread, offset);
         }
@@ -561,7 +517,7 @@ class FunctionTranslator {
 
             AsmPointer source = buildArrayIndexPointer(arrayType, array.getMain(), index.getMain());
             VirtualRegisterValue result = allocateFromMemory(arrayType.getCompound(), source);
-            gc.decrementRc(output, array);
+            gc.decrementRc(builder, array);
             deallocate(indexLoad.getArray(), indexLoad.getIndex());
 
             return result;
@@ -577,7 +533,7 @@ class FunctionTranslator {
 
             AsmPointer target = buildArrayIndexPointer(arrayType, array.getMain(), index.getMain());
             storeToMemory(arrayType.getCompound(), target, value, true);
-            gc.decrementRc(output, array);
+            gc.decrementRc(builder, array);
             deallocate(indexStore.getArray(), indexStore.getIndex(), indexStore.getValue());
 
             return null;
@@ -588,13 +544,12 @@ class FunctionTranslator {
             DataLayout layout = env.getDataLayout(dataInit.getType());
             AsmPointer header = new AsmPointer(AsmRegister.EDX, 0);
             AsmPointer data = header.shift(Header.Data.SIZE);
-            output.write(
-                AsmUnary.PUSH.create(new AsmImmediate(Header.Data.SIZE + layout.getSize())),
-                AsmUnary.CALL.create(env.malloc),
-                AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4)),
-                AsmBinary.MOV.create(AsmRegister.EDX, AsmRegister.EAX),
-                AsmBinary.MOV.create(header.shift(Header.COUNTER_OFFSET), new AsmImmediate(1))
-            );
+            builder
+                .write(AsmUnary.PUSH, new AsmImmediate(Header.Data.SIZE + layout.getSize()))
+                .write(AsmUnary.CALL, env.malloc)
+                .write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(4))
+                .write(AsmBinary.MOV, AsmRegister.EDX, AsmRegister.EAX)
+                .write(AsmBinary.MOV, header.shift(Header.COUNTER_OFFSET), new AsmImmediate(1));
             VirtualRegisterValue result = allocate(dataInit.getType(), AsmRegister.EAX, null);
             for (Map.Entry<AsgDataType.Field, BcValue> entry : dataInit.getValues().entrySet()) {
                 AsgDataType.Field field = entry.getKey();
@@ -619,25 +574,25 @@ class FunctionTranslator {
                 // push arguments
                 pushReverse(call.getArguments());
                 // push this
-                output.write(AsmUnary.PUSH.create(object.getMain()));
+                builder.write(AsmUnary.PUSH, object.getMain());
                 deallocate(call.getObject());
                 // load vtable pointer
-                AsmRegister vtable = loadAsRegister(object.getAux(), AsmRegister.EAX);
+                AsmRegister vtable = builder.loadAsRegister(object.getAux(), AsmRegister.EAX);
                 // call method
-                output.write(AsmUnary.CALL.create(new AsmPointer(vtable, methodOffset)));
+                builder.write(AsmUnary.CALL, new AsmPointer(vtable, methodOffset));
             } else {
                 // static call
                 AsgDataType dataType = (AsgDataType) call.getObject().getType();
                 // push arguments
                 pushReverse(call.getArguments());
                 // push this
-                output.write(AsmUnary.PUSH.create(object.getMain()));
+                builder.write(AsmUnary.PUSH, object.getMain());
                 deallocate(call.getObject());
                 // call method
-                output.write(AsmUnary.CALL.create(env.getMethodSymbol(dataType, method)));
+                builder.write(AsmUnary.CALL, env.getMethodSymbol(dataType, method));
             }
             // clear stack
-            output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(argumentsSize + 4)));
+            builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(argumentsSize + 4));
             return allocate(call.getResultType(), AsmRegister.EAX, AsmRegister.EDX);
         }
 
@@ -648,10 +603,10 @@ class FunctionTranslator {
             int offset = Header.Data.SIZE + layout.getFieldOffset(memberLoad.getField());
             VirtualRegisterValue object = memberLoad.getObject().accept(this);
 
-            AsmRegister base = loadAsRegister(object.getMain(), AsmRegister.EAX);
+            AsmRegister base = builder.loadAsRegister(object.getMain(), AsmRegister.EAX);
             AsmPointer fieldPointer = new AsmPointer(base, offset);
             VirtualRegisterValue result = allocateFromMemory(memberLoad.getResultType(), fieldPointer);
-            gc.decrementRc(output, object);
+            gc.decrementRc(builder, object);
             deallocate(memberLoad.getObject());
             return result;
         }
@@ -663,13 +618,13 @@ class FunctionTranslator {
             int offset = layout.getFieldOffset(memberStore.getField()) + Header.Data.SIZE;
             VirtualRegisterValue object = memberStore.getObject().accept(this);
 
-            AsmRegister base = loadAsRegister(object.getMain(), AsmRegister.EDX);
+            AsmRegister base = builder.loadAsRegister(object.getMain(), AsmRegister.EDX);
             AsmPointer fieldPointer = new AsmPointer(base, offset);
 
             VirtualRegisterValue value = memberStore.getValue().accept(this);
             storeToMemory(memberStore.getField().getType(), fieldPointer, value, true);
 
-            gc.decrementRc(output, object);
+            gc.decrementRc(builder, object);
             deallocate(memberStore.getObject(), memberStore.getValue());
 
             return null;
@@ -678,11 +633,11 @@ class FunctionTranslator {
         @Override
         public VirtualRegisterValue visit(BcReturn ret) {
             VirtualRegisterValue value = ret.getValue().accept(this);
-            output.write(AsmBinary.MOV.create(AsmRegister.EAX, value.getMain()));
+            builder.write(AsmBinary.MOV, AsmRegister.EAX, value.getMain());
             if (value.hasAux()) {
-                output.write(AsmBinary.MOV.create(AsmRegister.EDX, value.getAux()));
+                builder.write(AsmBinary.MOV, AsmRegister.EDX, value.getAux());
             }
-            output.write(AsmUnary.JMP.create(ctx.getCleanupLabel()));
+            builder.write(AsmUnary.JMP, ctx.getCleanupLabel());
             deallocate(ret.getValue());
             return null;
         }

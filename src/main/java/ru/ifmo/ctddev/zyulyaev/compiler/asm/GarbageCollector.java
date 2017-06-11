@@ -8,6 +8,7 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgTypeUtils;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmBinary;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.instruction.AsmUnary;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmImmediate;
+import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmOperand;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmPointer;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmRegister;
 import ru.ifmo.ctddev.zyulyaev.compiler.asm.operand.AsmSymbol;
@@ -27,47 +28,39 @@ class GarbageCollector {
         return !type.isPrimitive() && type != AsgPredefinedType.NONE;
     }
 
-    void incrementRc(AsmOutput output, VirtualRegisterValue target) {
+    void incrementRc(AsmBuilder builder, VirtualRegisterValue target, AsmOperand count) {
         if (hasReferenceCounter(target.getType())) {
-            AsmRegister base;
-            if (target.getMain().isRegister()) {
-                base = (AsmRegister) target.getMain();
-            } else {
-                output.write(AsmBinary.MOV.create(AsmRegister.EAX, target.getMain()));
-                base = AsmRegister.EAX;
-            }
-            output.write(
-                AsmBinary.TEST.create(base, base),
-                AsmUnary.JZ.create(new AsmSymbol("1f")),
-                AsmUnary.INC.create(new AsmPointer(base, Header.COUNTER_OFFSET))
-            );
-            output.write(new AsmSymbol("1"));
+            AsmRegister base = builder.loadAsRegister(target.getMain(), AsmRegister.EAX);
+            count = builder.loadAsValue(count, AsmRegister.ECX);
+            builder
+                .write(AsmBinary.TEST, base, base)
+                .write(AsmUnary.JZ, new AsmSymbol("1f"))
+                .write(AsmBinary.ADD, new AsmPointer(base, Header.COUNTER_OFFSET), count)
+                .write(new AsmSymbol("1"));
         }
     }
 
-    void decrementRc(AsmOutput output, VirtualRegisterValue target) {
+    void decrementRc(AsmBuilder builder, VirtualRegisterValue target) {
         AsgType type = target.getType();
         if (hasReferenceCounter(type)) {
-            output.write(
-                AsmUnary.PUSH.create(AsmRegister.EDX),
-                AsmUnary.PUSH.create(AsmRegister.ECX)
-            );
-            output.write(
-                AsmBinary.MOV.create(AsmRegister.EDX, target.getMain()),
-                AsmBinary.TEST.create(AsmRegister.EDX, AsmRegister.EDX),
-                AsmUnary.JZ.create(new AsmSymbol("1f")),
-                AsmUnary.DEC.create(new AsmPointer(AsmRegister.EDX, Header.COUNTER_OFFSET)),
-                AsmUnary.JNZ.create(new AsmSymbol("1f"))
-            );
+            builder
+                .write(AsmUnary.PUSH, AsmRegister.EDX)
+                .write(AsmUnary.PUSH, AsmRegister.ECX)
+                
+                .write(AsmBinary.MOV, AsmRegister.EDX, target.getMain())
+                .write(AsmBinary.TEST, AsmRegister.EDX, AsmRegister.EDX)
+                .write(AsmUnary.JZ, new AsmSymbol("1f"))
+                .write(AsmUnary.DEC, new AsmPointer(AsmRegister.EDX, Header.COUNTER_OFFSET))
+                .write(AsmUnary.JNZ, new AsmSymbol("1f"));
             if (type.isClass()) {
                 // push this
-                output.write(AsmUnary.PUSH.create(AsmRegister.EDX));
+                builder.write(AsmUnary.PUSH, AsmRegister.EDX);
                 // load vtable pointer
-                output.write(AsmBinary.MOV.create(AsmRegister.EDX, target.getAux()));
+                builder.write(AsmBinary.MOV, AsmRegister.EDX, target.getAux());
                 // call destructor
-                output.write(AsmUnary.CALL.create(new AsmPointer(AsmRegister.EDX, Header.VirtualTable.DESTRUCTOR_OFFSET)));
+                builder.write(AsmUnary.CALL, new AsmPointer(AsmRegister.EDX, Header.VirtualTable.DESTRUCTOR_OFFSET));
                 // clear stack
-                output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4)));
+                builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(4));
             } else if (type.isArray()) {
                 AsgArrayType arrayType = (AsgArrayType) type;
                 int depth = AsgTypeUtils.getArrayTypeDepth(arrayType);
@@ -75,79 +68,77 @@ class GarbageCollector {
                 if (deepestType.isPrimitive()) {
                     if (depth == 1) {
                         // push array pointer
-                        output.write(AsmUnary.PUSH.create(AsmRegister.EDX));
+                        builder.write(AsmUnary.PUSH, AsmRegister.EDX);
                         // call free
-                        output.write(AsmUnary.CALL.create(env.free));
+                        builder.write(AsmUnary.CALL, env.free);
                         // clear stack
-                        output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4)));
+                        builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(4));
                     } else {
                         // push destructor function(free)
-                        output.write(AsmUnary.PUSH.create(env.free.toAddress()));
+                        builder.write(AsmUnary.PUSH, env.free.toAddress());
                         // push depth up to which to interpret values as boxed
-                        output.write(AsmUnary.PUSH.create(new AsmImmediate(depth - 1)));
+                        builder.write(AsmUnary.PUSH, new AsmImmediate(depth - 1));
                         // push array pointer
-                        output.write(AsmUnary.PUSH.create(AsmRegister.EDX));
+                        builder.write(AsmUnary.PUSH, AsmRegister.EDX);
                         // delete array
-                        output.write(AsmUnary.CALL.create(env.arrdel));
+                        builder.write(AsmUnary.CALL, env.arrdel);
                         // clear stack
-                        output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(12)));
+                        builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(12));
                     }
                 } else if (deepestType.isClass()) {
                     if (depth == 1) {
                         // push array pointer
-                        output.write(AsmUnary.PUSH.create(AsmRegister.EDX));
+                        builder.write(AsmUnary.PUSH, AsmRegister.EDX);
                         // delete array
-                        output.write(AsmUnary.CALL.create(env.carrdel));
+                        builder.write(AsmUnary.CALL, env.carrdel);
                         // clear stack
-                        output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4)));
+                        builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(4));
                     } else {
                         // push destructor function(rc_carrdel)
-                        output.write(AsmUnary.PUSH.create(env.carrdel.toAddress()));
+                        builder.write(AsmUnary.PUSH, env.carrdel.toAddress());
                         // push depth up to which to interpret values as boxed
-                        output.write(AsmUnary.PUSH.create(new AsmImmediate(depth - 1)));
+                        builder.write(AsmUnary.PUSH, new AsmImmediate(depth - 1));
                         // push array pointer
-                        output.write(AsmUnary.PUSH.create(AsmRegister.EDX));
+                        builder.write(AsmUnary.PUSH, AsmRegister.EDX);
                         // delete array
-                        output.write(AsmUnary.CALL.create(env.arrdel));
+                        builder.write(AsmUnary.CALL, env.arrdel);
                         // clear stack
-                        output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(12)));
+                        builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(12));
                     }
                 } else if (deepestType.isData()) {
                     AsmSymbol destructorSymbol = env.getDestructorSymbol((AsgDataType) deepestType);
                     // push destructor function
-                    output.write(AsmUnary.PUSH.create(destructorSymbol.toAddress()));
+                    builder.write(AsmUnary.PUSH, destructorSymbol.toAddress());
                     // push depth up to which to interpret values as boxed
-                    output.write(AsmUnary.PUSH.create(new AsmImmediate(depth)));
+                    builder.write(AsmUnary.PUSH, new AsmImmediate(depth));
                     // push array pointer
-                    output.write(AsmUnary.PUSH.create(AsmRegister.EDX));
+                    builder.write(AsmUnary.PUSH, AsmRegister.EDX);
                     // delete array
-                    output.write(AsmUnary.CALL.create(env.arrdel));
+                    builder.write(AsmUnary.CALL, env.arrdel);
                     // clear stack
-                    output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(12)));
+                    builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(12));
                 } else {
                     throw new UnsupportedOperationException();
                 }
             } else if (type == AsgPredefinedType.STRING) {
-                output.write(
-                    AsmUnary.PUSH.create(AsmRegister.EDX),
-                    AsmUnary.CALL.create(env.free),
-                    AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4))
-                );
+                builder
+                    .write(AsmUnary.PUSH, AsmRegister.EDX)
+                    .write(AsmUnary.CALL, env.free)
+                    .write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(4));
             } else {
                 AsgDataType dataType = (AsgDataType) type;
                 AsmSymbol destructor = env.getDestructorSymbol(dataType);
                 // push this
-                output.write(AsmUnary.PUSH.create(AsmRegister.EDX));
+                builder.write(AsmUnary.PUSH, AsmRegister.EDX);
                 // call destructor
-                output.write(AsmUnary.CALL.create(destructor));
+                builder.write(AsmUnary.CALL, destructor);
                 // clear stack
-                output.write(AsmBinary.ADD.create(AsmRegister.ESP, new AsmImmediate(4)));
+                builder.write(AsmBinary.ADD, AsmRegister.ESP, new AsmImmediate(4));
             }
-            output.write(new AsmSymbol("1"));
-            output.write(
-                AsmUnary.POP.create(AsmRegister.ECX),
-                AsmUnary.POP.create(AsmRegister.EDX)
-            );
+            builder
+                .write(new AsmSymbol("1"))
+                .write(AsmUnary.POP, AsmRegister.ECX)
+                .write(AsmUnary.POP, AsmRegister.EDX);
         }
     }
 }
