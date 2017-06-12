@@ -17,8 +17,7 @@ public class AsgArrayType implements AsgType {
 
     @Override
     public boolean isAssignableFrom(AsgType type) {
-        return type == AsgPredefinedType.NONE
-            || type instanceof AsgArrayType && compound.isAssignableFrom(((AsgArrayType) type).compound);
+        return type == AsgPredefinedType.NONE || equals(type);
     }
 
     @Override

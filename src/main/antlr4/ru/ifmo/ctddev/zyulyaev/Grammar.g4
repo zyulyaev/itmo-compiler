@@ -100,7 +100,7 @@ term
     | id                                                                    # idTerm
     ;
 
-dataExpression: dataType=id '{' fieldExpression (',' fieldExpression)* '}';
+dataExpression: dataType=id '{' (fieldExpression (',' fieldExpression)*)? '}';
 
 fieldExpression: name=id ':' value=expression;
 
@@ -122,8 +122,8 @@ literal
 
 STR : '"' (~'"'|'\\"')* '"';
 BOOL: 'true' | 'false';
+NULL: 'none';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
 INT: [0-9]+;
 CHAR: '\'' (~'\''|'\\\'') '\'';
-NULL: '{}';
 WS: [\n\r\t ]+ -> skip;
