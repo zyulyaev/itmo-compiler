@@ -99,6 +99,9 @@ class ExpressionParser extends GrammarBaseVisitor<AsgExpression> {
         AsgType objectType = object.getResultType();
         String methodName = ctx.method.getText();
         AsgMethod method = context.resolveMethod(objectType, methodName);
+        if (objectType.isClass() && !objectType.equals(method.getParent())) {
+            object = new AsgCastExpression(object, method.getParent(), false);
+        }
         List<AsgExpression> arguments = ctx.args.argument().stream()
             .map(arg -> arg.accept(this))
             .collect(Collectors.toList());

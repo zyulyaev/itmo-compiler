@@ -52,6 +52,9 @@ public class AsmTranslator {
                 AsmSymbol symbol = env.getVTableSymbol(dataType, classType);
                 output.write(new AsmLabelLine(symbol));
                 output.write(new AsmIntDirective(env.getDestructorSymbol(dataType)));
+                for (AsgClassType superClass : classType.getSuperClasses()) {
+                    output.write(new AsmIntDirective(env.getVTableSymbol(dataType, superClass)));
+                }
                 for (AsgMethod method : classType.getMethods()) {
                     output.write(new AsmIntDirective(env.getMethodSymbol(dataType, method)));
                 }

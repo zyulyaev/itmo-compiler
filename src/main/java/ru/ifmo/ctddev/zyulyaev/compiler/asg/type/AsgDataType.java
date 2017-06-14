@@ -5,9 +5,10 @@ import lombok.Getter;
 import lombok.Setter;
 import ru.ifmo.ctddev.zyulyaev.compiler.asg.AsgMethod;
 
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * @author zyulyaev
@@ -16,7 +17,7 @@ import java.util.Objects;
 @Getter
 @Setter
 public class AsgDataType implements AsgType {
-    private final List<AsgClassType> implementedClasses = new ArrayList<>();
+    private final Set<AsgClassType> implementedClasses = new LinkedHashSet<>();
     private final String name;
     private List<Field> fields;
 

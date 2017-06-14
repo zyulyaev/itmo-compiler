@@ -18,8 +18,10 @@ import ru.ifmo.ctddev.zyulyaev.compiler.asg.type.AsgType;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -77,6 +79,8 @@ public class AsgBuilder {
             dataDefinitions.stream().map(this::parseDataDeclaration).collect(Collectors.toList());
         List<AsgClassType> definedClasses =
             classDefinitions.stream().map(this::parseClassDeclaration).collect(Collectors.toList());
+        classDefinitions.forEach(this::parseSuperClasses);
+        SuperClassCollector.collectTransitiveSuperClasses(definedClasses);
         implDefinitions.forEach(this::parseImplDeclaration);
 
         dataDefinitions.forEach(this::parseDataDefinition);
@@ -110,7 +114,7 @@ public class AsgBuilder {
 
     private void parseDataDefinition(GrammarParser.DataDefinitionContext ctx) {
         AsgDataType type = (AsgDataType) environment.getType(ctx.name.getText());
-        type.setFields(ctx.fields().field().stream()
+        type.setFields(ctx.fields.stream()
             .map(field -> new AsgDataType.Field(type, field.name.getText(), field.accept(environment.asTypeParser())))
             .collect(Collectors.toList()));
     }
@@ -119,6 +123,14 @@ public class AsgBuilder {
         AsgClassType type = new AsgClassType(ctx.name.getText());
         environment.defineType(type);
         return type;
+    }
+
+    private void parseSuperClasses(GrammarParser.ClassDefinitionContext ctx) {
+        AsgClassType type = (AsgClassType) environment.getType(ctx.name.getText());
+        Set<AsgClassType> superClasses = ctx.superClasses.stream()
+            .map(superClass -> (AsgClassType) environment.getType(superClass.getText()))
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        type.setSuperClasses(superClasses);
     }
 
     private void parseClassDefinition(GrammarParser.ClassDefinitionContext ctx) {
@@ -168,6 +180,7 @@ public class AsgBuilder {
         AsgClassType classType = (AsgClassType) environment.getType(ctx.className.getText());
         AsgDataType dataType = (AsgDataType) environment.getType(ctx.dataType.getText());
         dataType.getImplementedClasses().add(classType);
+        dataType.getImplementedClasses().addAll(classType.getSuperClasses());
     }
 
     private AsgImplDefinition parseImplDefinition(GrammarParser.ImplDefinitionContext ctx) {

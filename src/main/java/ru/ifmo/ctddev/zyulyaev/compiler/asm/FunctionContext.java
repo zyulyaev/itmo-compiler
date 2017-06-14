@@ -40,20 +40,20 @@ class FunctionContext {
         this.lineLabels = lineLabels;
         this.cleanupLabel = cleanupLabel;
 
-        int parametersOffset = 8 + 4 * storedRegisters;
+        int parameterOffset = 8 + 4 * storedRegisters;
         if (thisValue != null) {
-            variables.put(thisValue, new AsmPointer(AsmRegister.EBP, parametersOffset));
-            parametersOffset += 4;
+            variables.put(thisValue, new AsmPointer(AsmRegister.EBP, parameterOffset));
+            parameterOffset += 4;
         }
-        for (int i = 0; i < parameters.size(); i++) {
-            AsgVariable variable = parameters.get(i);
-            variables.put(variable, new AsmPointer(AsmRegister.EBP, 4 * i + parametersOffset));
+        for (AsgVariable parameter : parameters) {
+            variables.put(parameter, new AsmPointer(AsmRegister.EBP, parameterOffset));
+            parameterOffset += Environment.sizeOf(parameter.getType());
         }
-        for (int i = 0; i < localVariables.size(); i++) {
-            AsgVariable variable = localVariables.get(i);
-            variables.put(variable, new AsmPointer(AsmRegister.EBP, -4 * i - 4));
+        allocatedOnStack = 0;
+        for (AsgVariable variable : localVariables) {
+            allocatedOnStack += Environment.sizeOf(variable.getType());
+            variables.put(variable, new AsmPointer(AsmRegister.EBP, -allocatedOnStack));
         }
-        allocatedOnStack = localVariables.size();
     }
 
     AsmOperand allocate() {
@@ -65,8 +65,8 @@ class FunctionContext {
             return target;
         }
         if (stackPool.isEmpty()) {
-            stackPool.add(new AsmPointer(AsmRegister.EBP, -4 * allocatedOnStack - 4));
-            allocatedOnStack++;
+            allocatedOnStack += 4;
+            stackPool.add(new AsmPointer(AsmRegister.EBP, -allocatedOnStack));
         }
         return stackPool.poll();
     }
@@ -87,7 +87,7 @@ class FunctionContext {
     }
 
     int getStackSize() {
-        return allocatedOnStack * 4;
+        return allocatedOnStack;
     }
 
     AsmSymbol getLabel(BcLabel label) {

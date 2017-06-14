@@ -82,13 +82,19 @@ class Environment {
             destructorSymbolMap.put(dataType, reserve(dataType.getName() + "$destroy"));
         }
         for (AsgClassType classType : classes) {
-            Map<AsgMethod, Integer> offsetMap = new LinkedHashMap<>();
+            Map<AsgClassType, Integer> superClassOffsetMap = new LinkedHashMap<>();
+            Map<AsgMethod, Integer> methodOffsetMap = new LinkedHashMap<>();
             int offset = 4; // destructor is always first
-            for (AsgMethod method : classType.getMethods()) {
-                offsetMap.put(method, offset);
+            for (AsgClassType superClass : classType.getSuperClasses()) {
+                superClassOffsetMap.put(superClass, offset);
                 offset += 4;
             }
-            virtualTableLayoutMap.put(classType, new VirtualTableLayout(classType, offsetMap));
+            for (AsgMethod method : classType.getMethods()) {
+                methodOffsetMap.put(method, offset);
+                offset += 4;
+            }
+            virtualTableLayoutMap.put(classType,
+                new VirtualTableLayout(classType, superClassOffsetMap, methodOffsetMap));
         }
         for (AsgDataType dataType : dataTypes) {
             for (AsgClassType classType : dataType.getImplementedClasses()) {

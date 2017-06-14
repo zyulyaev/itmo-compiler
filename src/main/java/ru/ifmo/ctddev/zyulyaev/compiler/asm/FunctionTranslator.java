@@ -647,18 +647,20 @@ class FunctionTranslator {
             VirtualRegisterValue value = cast.getValue().accept(this);
             AsgType fromType = cast.getValue().getType();
             AsgType targetType = cast.getTarget();
-            if ((!fromType.isData() || !targetType.isClass()) &&
-                (fromType != AsgPredefinedType.NONE || targetType.isPrimitive()))
-            {
-                throw new UnsupportedOperationException("Only cast from data types to class types and from None to Boxed types are supported");
-            }
-
             VirtualRegisterValue result;
             if (fromType.isData() && targetType.isClass()) {
                 AsmSymbol vtableSymbol = env.getVTableSymbol((AsgDataType) fromType, (AsgClassType) targetType);
                 result = allocate(targetType, value.getMain(), vtableSymbol.toAddress());
-            } else {
+            } else if (fromType.isClass() && targetType.isClass()) {
+                VirtualTableLayout layout = env.getVirtualTableLayout((AsgClassType) fromType);
+                int offset = layout.getSuperClassVTableOffset((AsgClassType) targetType);
+                AsmRegister vtablePointer = builder.loadAsRegister(value.getAux(), AsmRegister.EDX);
+                builder.write(AsmBinary.MOV, AsmRegister.EDX, new AsmPointer(vtablePointer, offset));
+                result = allocate(targetType, value.getMain(), AsmRegister.EDX);
+            } else if (fromType == AsgPredefinedType.NONE && !targetType.isPrimitive()) {
                 result = allocate(targetType, value.getMain(), null);
+            } else {
+                throw new UnsupportedOperationException("Cast not supported");
             }
             deallocate(cast.getValue());
             return result;

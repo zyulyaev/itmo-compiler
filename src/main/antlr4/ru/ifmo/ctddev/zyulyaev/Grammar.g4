@@ -20,15 +20,20 @@ parameters
 
 parameter: id ':' type;
 
-dataDefinition: 'data' name=id '{' fields '}';
-
-fields
-    : field (',' field)*
-    | // no fields
+dataDefinition
+    : 'data'
+        name=id
+        '{' (fields+=field (',' fields+=field)*)? '}'
     ;
+
 field: name=id ':' type;
 
-classDefinition: 'class' name=id '{' methodDecl* '}';
+classDefinition
+    : 'class'
+        name=id
+        ('extends' superClasses+=id (',' superClasses+=id)*)?
+        '{' methodDecl* '}'
+    ;
 
 methodDecl: 'fun' name=id '(' parameters ')' ':' returnType=type;
 

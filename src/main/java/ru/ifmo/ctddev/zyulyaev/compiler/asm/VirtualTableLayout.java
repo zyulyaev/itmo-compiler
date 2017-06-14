@@ -13,7 +13,12 @@ import java.util.Map;
 @Data
 class VirtualTableLayout {
     private final AsgClassType classType;
+    private final Map<AsgClassType, Integer> superClassVTableOffsetMap;
     private final Map<AsgMethod, Integer> methodOffsetMap;
+
+    int getSuperClassVTableOffset(AsgClassType superClass) {
+        return superClassVTableOffsetMap.get(superClass);
+    }
 
     int getMethodOffset(AsgMethod method) {
         return methodOffsetMap.get(method);

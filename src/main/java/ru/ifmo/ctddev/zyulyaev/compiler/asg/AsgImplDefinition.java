@@ -18,7 +18,7 @@ import java.util.List;
 public class AsgImplDefinition {
     private final AsgClassType classType;
     private final AsgDataType dataType;
-    private List<AsgMethodDefinition> definitions;
+    private final List<AsgMethodDefinition> definitions;
 
     public AsgMethodDefinition getDefinition(AsgMethod method) {
         return definitions.stream()
